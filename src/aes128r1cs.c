@@ -185,6 +185,7 @@ void r1cs_get_vec_z( uint8_t * vec_z , const uint8_t * pt , const uint8_t * key 
 
 static void spmat_x_vec( uint64_t * r , const uint16_t * spmat , int n_spmat_terms, int n_vec , int vec_len, const uint8_t * vec )
 {
+    (void)n_vec;
     for(int i=0;i<vec_len;i++) r[i]=0;
     for(int i=0;i<n_spmat_terms;i++) {
         uint16_t col_idx = spmat[i*4+0];
@@ -197,6 +198,7 @@ static void spmat_x_vec( uint64_t * r , const uint16_t * spmat , int n_spmat_ter
 
 static void spmat_tr_x_vec( uint64_t * r , const uint16_t * spmat , int n_spmat_terms, int n_vec , int vec_len, const uint64_t * vec )
 {
+    (void)vec_len;
     for(int i=0;i<n_vec;i++) r[i]=0;
     for(int i=0;i<n_spmat_terms;i++) {
         uint16_t col_idx = spmat[i*4+0];
