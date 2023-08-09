@@ -83,9 +83,12 @@ inline void _shift_row( uint8_t * state ) {
 }
 
 inline uint8_t _x2( uint8_t a ) { return ((a<<1)&0xff)^((a>>7)*0x1b); }
+
 inline uint8_t _x3( uint8_t a ) { return _x2(a)^a; }
+
 //def _mix_col0( a0 , a1, a2 , a3 ): return [_x2(a0)^_x3(a1)^a2^a3, a0^_x2(a1)^_x3(a2)^a3 , a0^a1^_x2(a2)^_x3(a3) , _x3(a0)^a1^a2^_x2(a3)]
-inline void _mix_col( uint8_t * state ) {
+
+static void _mix_col( uint8_t * state ) {
     for(int i=0;i<4;i++) {
         uint8_t a0 = state[i*4+0];
         uint8_t a1 = state[i*4+1];
