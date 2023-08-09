@@ -49,6 +49,9 @@ if __name__ == '__main__' :
     pt = bytes( [i*16+i for i in range(16)] )
     sk = bytes( [i for i in range(16)] )
     z = get_vec_z(pt,sk,64)
-    print( f"z[{len(z)}] = " )
-    print( [ hex(e) for e in z[:64] ] )
-    print( [ hex(e) for e in z[64:] ] )
+    print( f"uint8_t z[{len(z)}] = " + "{" )
+    for i,v in enumerate(z):
+        print( f"{hex(v)}," , end='' )
+        if 3==(i%3) : print( " " , end='' )
+        if 31==(i%32) : print('')
+    print( "};" )
