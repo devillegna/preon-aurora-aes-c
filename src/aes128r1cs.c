@@ -180,20 +180,42 @@ void r1cs_get_vec_z( uint8_t * vec_z , const uint8_t * pt , const uint8_t * key 
 
 
 
+#include "gf264.h"
 
 
+static void spmat_x_vec( uint64_t * r , const uint16_t * spmat , int n_spmat_terms, int n_vec , int vec_len, const uint8_t * vec )
+{
+    for(int i=0;i<vec_len;i++) r[i]=0;
+    for(int i=0;i<n_spmat_terms;i++) {
+        uint16_t col_idx = spmat[i*4+0];
+        uint16_t row_idx = spmat[i*4+1];
+        uint16_t value   = spmat[i*4+2];
+        if( 1==value ) r[row_idx] ^= vec[col_idx];
+        else  r[row_idx] ^= gf264_mul( vec[col_idx] , value );
+    }
+}
+
+static void spmat_tr_x_vec( uint64_t * r , const uint16_t * spmat , int n_spmat_terms, int n_vec , int vec_len, const uint64_t * vec )
+{
+    for(int i=0;i<n_vec;i++) r[i]=0;
+    for(int i=0;i<n_spmat_terms;i++) {
+        uint16_t col_idx = spmat[i*4+0];
+        uint16_t row_idx = spmat[i*4+1];
+        uint16_t value   = spmat[i*4+2];
+        if( 1==value ) r[col_idx] ^= vec[row_idx];
+        else           r[col_idx] ^= gf264_mul( vec[row_idx] , value );
+    }
+}
 
 
 #include "aes128r1cs_mats.data"
 
+void r1cs_matA_x_vec_z( uint64_t * Az , const uint8_t * vec_z  ) { spmat_x_vec( Az , _mat_a , N_TERMS_mat_a , R1CS_NCOL , R1CS_NROW , vec_z ); }
+void r1cs_matB_x_vec_z( uint64_t * Bz , const uint8_t * vec_z  ) { spmat_x_vec( Bz , _mat_b , N_TERMS_mat_b , R1CS_NCOL , R1CS_NROW , vec_z ); }
+void r1cs_matC_x_vec_z( uint64_t * Cz , const uint8_t * vec_z  ) { spmat_x_vec( Cz , _mat_c , N_TERMS_mat_c , R1CS_NCOL , R1CS_NROW , vec_z ); }
 
-
-void r1cs_matA_x_vec_z( uint64_t * Az , const uint8_t * vec_z  );
-void r1cs_matB_x_vec_z( uint64_t * Bz , const uint8_t * vec_z  );
-void r1cs_matC_x_vec_z( uint64_t * Cz , const uint8_t * vec_z  );
-
-void r1cs_matA_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
-void r1cs_matB_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
-void r1cs_matC_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
+void r1cs_matA_colvec_dot( uint64_t * vec_row , const uint64_t * alphas ) { spmat_tr_x_vec( vec_row , _mat_a , N_TERMS_mat_a , R1CS_NCOL , R1CS_NROW , alphas ); }
+void r1cs_matB_colvec_dot( uint64_t * vec_row , const uint64_t * alphas ) { spmat_tr_x_vec( vec_row , _mat_b , N_TERMS_mat_b , R1CS_NCOL , R1CS_NROW , alphas ); }
+void r1cs_matC_colvec_dot( uint64_t * vec_row , const uint64_t * alphas ) { spmat_tr_x_vec( vec_row , _mat_c , N_TERMS_mat_c , R1CS_NCOL , R1CS_NROW , alphas ); }
 
 
