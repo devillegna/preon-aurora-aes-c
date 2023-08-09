@@ -11,6 +11,9 @@
 #define R1CS_NROW   3656
 #define R1CS_PADLEN 4096
 
+#define R1CS_Z_LEN  (R1CS_NCOL)
+
+
 
 void r1cs_get_vec_z( uint8_t * vec_z , const uint8_t * pt , const uint8_t * key );
 

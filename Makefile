@@ -80,17 +80,17 @@ endif
 .PHONY: all clean
 
 
-all: $(SLIBPATH)/lib$(SLIBNAME).a submodule-test
+all: $(SLIBPATH)/lib$(SLIBNAME).a aes128r1cs-test
 
 
 $(SLIBPATH)/lib$(SLIBNAME).a:
 	cd polyeval && $(MAKE) PROJ=$(PROJ) lib
 
-%-test:  %-test.o
-	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $<  $(LIBS)
+%-test: $(OBJS) %-test.o
+	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $^  $(LIBS)
 
 %-benchmark:  %-benchmark.o
-	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $<  $(LIBS)
+	$(LD) $(LDFLAGS) $(LIBPATH) -o $@ $^  $(LIBS)
 
 %.o: unit-tests/%.c
 	$(CC) $(CFLAGS) $(TESTINCPATH) -o $@ -c $<
