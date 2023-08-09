@@ -5,6 +5,13 @@ LD = gcc
 PROJ ?= avx2
 #PROJ ?= ref
 
+
+ARCH := $(shell uname -m)
+ifeq  ($(ARCH), arm64)
+PROJ  =  neon
+endif
+
+
 SLIBNAME = gf264btfy
 SLIBPATH = ./polyeval/btfy/gf264
 
