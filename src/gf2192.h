@@ -1,9 +1,12 @@
 #ifndef _GF2192_H_
 #define _GF2192_H_
 
+#ifdef  __cplusplus
+extern  "C" {
+#endif
+
 
 #include "gf264.h"
-
 
 // gf2192 := gf264[x]/(x^3+x+1)
 static inline
@@ -20,5 +23,28 @@ void gf2192_mul(uint64_t *r0,uint64_t *r1,uint64_t *r2,uint64_t a0,uint64_t a1,u
 }
 
 
+#define GF_EXT_DEG    3
+
+
+
+///////////////////////////////// GF ARRAY //////////////////////////////
+
+
+typedef struct gf_array {
+    unsigned len;
+    uint64_t * vec[GF_EXT_DEG];
+} gfvec_t;
+
+
+int gfvec_alloc( gfvec_t *v, unsigned len );
+
+void gfvec_free( gfvec_t *v);
+
+
+
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif
