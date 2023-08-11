@@ -61,21 +61,14 @@ int mt_commit( mt_t * tree , const uint8_t * mesgs , unsigned mesg_len , unsigne
 
     uint8_t *ptr = tree->leaves;
     for(unsigned i=0;i<num_mesg;i++) {
-        hash_ctx h;
-        hash_init(&h);
-        hash_update(&h, mesgs+i*mesg_len , mesg_len );
-        hash_update(&h, (tree->randomness) + i*MT_RAND_LEN , MT_RAND_LEN );
-        hash_final_digest( ptr , &h );
+        hash_2mesg( ptr , mesgs+i*mesg_len , mesg_len , (tree->randomness) + i*MT_RAND_LEN , MT_RAND_LEN );
         ptr += HASH_DIGEST_LEN;
     }
 
     uint8_t * prev_l = tree->leaves;
     while( 1 < num_mesg ) {
         for(unsigned i=0;i<num_mesg;i+=2) {
-            hash_ctx h;
-            hash_init(&h);
-            hash_update(&h, prev_l+i*HASH_DIGEST_LEN , HASH_DIGEST_LEN*2 );
-            hash_final_digest( ptr , &h );
+            hash_1mesg( ptr , prev_l+i*HASH_DIGEST_LEN , HASH_DIGEST_LEN*2 );
             ptr += HASH_DIGEST_LEN;
         }
         prev_l += num_mesg*HASH_DIGEST_LEN;
@@ -134,21 +127,13 @@ def verify( rt , idx , auth_path ):
 int mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned idx )
 {
     uint8_t state[HASH_DIGEST_LEN];
-    hash_ctx h;
-    hash_init(&h);
-    hash_update(&h, auth_path , mesg_len + MT_RAND_LEN );   auth_path += mesg_len + MT_RAND_LEN;
-    hash_final_digest( state , &h );
+    hash_1mesg( state , auth_path , mesg_len + MT_RAND_LEN );
+    auth_path += mesg_len + MT_RAND_LEN;
 
     while( 1<num_mesg ) {
-        hash_init(&h);
-        if (idx&1) {
-            hash_update(&h, auth_path , HASH_DIGEST_LEN );   auth_path += HASH_DIGEST_LEN;
-            hash_update(&h, state     , HASH_DIGEST_LEN );
-        } else {
-            hash_update(&h, state     , HASH_DIGEST_LEN );
-            hash_update(&h, auth_path , HASH_DIGEST_LEN );   auth_path += HASH_DIGEST_LEN;
-        }
-        hash_final_digest( state , &h );
+        if (idx&1) { hash_2mesg( state , auth_path , HASH_DIGEST_LEN , state , HASH_DIGEST_LEN ); }
+        else       { hash_2mesg( state , state , HASH_DIGEST_LEN , auth_path , HASH_DIGEST_LEN ); }
+        auth_path += HASH_DIGEST_LEN;
         idx >>= 1;
         num_mesg >>= 1;
     }

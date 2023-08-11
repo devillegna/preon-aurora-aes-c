@@ -31,13 +31,21 @@ uint8_t check_eq( const uint8_t *vec0, const uint8_t *vec1, unsigned len)
 
 
 
-
+#include "randombytes.h"
+#include "gf2192.h"
 #include "frildt.h"
 
+#define POLYLEN 32
 
 int test_0(void)
 {
     printf("test ????.\n");
+
+    gfvec_t vec;
+    gfvec_alloc( &vec , POLYLEN );
+    randombytes( (uint8_t*)vec.vec[0] , POLYLEN*8*GF_EXT_DEG );
+
+    
 
     return -1;
 }

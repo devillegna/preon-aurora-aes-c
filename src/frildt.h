@@ -28,8 +28,15 @@ typedef struct frildt_proof {
 } frildt_proof_t;
 
 
+#define FRI_GF_BYTELEN   24
+#define FRI_POLYLEN      32
+#define FRI_LOGPOLYLEN   5
+
+#define FRI_N_MESG       (FRI_POLYLEN/2)
+#define FRI_AUTHPATH_LEN (FRI_LOGPOLYLEN-1)
+
 // XXX: fix this
-#define FRI_PROOF_SIZE(polylen)    (polylen*8+FRI_RS_RHO*FRI_HASH_LEN)
+#define FRI_PROOF_SIZE(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY)
 
 
 

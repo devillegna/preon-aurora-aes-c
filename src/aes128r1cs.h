@@ -1,6 +1,11 @@
 #ifndef _AES128R1CS_H_
 #define _AES128R1CS_H_
 
+#ifdef  __cplusplus
+extern  "C" {
+#endif
+
+
 #include "stdint.h"
 
 
@@ -25,5 +30,9 @@ void r1cs_matA_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
 void r1cs_matB_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
 void r1cs_matC_colvec_dot( uint64_t * vec_row , const uint64_t * alphas );
 
+
+#ifdef  __cplusplus
+}
+#endif
 
 #endif

@@ -61,8 +61,11 @@ def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbo
     dump( f"update h_state <- H( xi || c0 || c1 ): {h_state}" )
     return commits , d1poly , mktrees , h_state
 
+#endif
 
 
+
+#if 0
 def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):
     if 1 == verbose : dump = print
     else : dump = _dummy
@@ -88,8 +91,10 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
         queries = [ q//2 for q in queries ]
         j = j+1
     return open_mesgs , _queries
+#endif
 
 
+#if 0
 def ldt_gen_proof( f0 , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
     if 1 == verbose : dump = print
     else : dump = _dummy
@@ -109,11 +114,19 @@ def ldt_gen_proof( f0 , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
     proof.extend( open_mesgs )
     proof.append( mt.batchopen(queries,mesg0,rd0,tree0) )  # opened messages of first commit
     return proof
+#endif
 
 
-##########################################
+int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_state )
+{
+
+    return -1;
+}
 
 
+
+
+#if 0
 def ldt_recover_challenges( _poly_len , h_state , commits , d1poly , Nq , RS_rho = 8 , verbose = 1 ):
     if 1 == verbose : dump = print
     else : dump = _dummy
@@ -201,8 +214,9 @@ def _check_linear_relation( mesgj1 , mesgj0 , idx , xi , offset ) :
 def _check_deg1poly_linear_relation( mesgjm1 , d1poly , idx , xi , offset ) :
     m0 = gf.fft( gf.from_bytes_x2(d1poly) , 1 , (offset>>1)^(idx^(idx&1)) )
     return _check_linear_relation( mesgjm1 , gf.to_bytes(m0[0])+gf.to_bytes(m0[1]) , idx , xi , offset )
+#endif
 
-
+#if 0
 def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
     n_commits = ldt_n_commit( _poly_len )
     first_commit = proof[0]
@@ -217,3 +231,9 @@ def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1
     return ldt_verify_proof(commits,d1poly,[path[0] for path in first_mesgs],open_mesgs,xi,queries,1<<63,verbose)
 #endif
 
+int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_state )
+{
+
+
+    return -1;
+}
