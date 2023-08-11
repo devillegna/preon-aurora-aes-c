@@ -35,19 +35,26 @@ uint8_t check_eq( const uint8_t *vec0, const uint8_t *vec1, unsigned len)
 #include "gf2192.h"
 #include "frildt.h"
 
-#define POLYLEN 32
+#define POLYLEN    FRI_POLYLEN
+#define LOGPOLYLEN FRI_LOGPOLYLEN
 
 int test_0(void)
 {
-    printf("test ????.\n");
+    printf("test gen proof([%d])/verify.\n", POLYLEN );
 
     gfvec_t vec;
     gfvec_alloc( &vec , POLYLEN );
-    randombytes( (uint8_t*)vec.vec[0] , POLYLEN*8*GF_EXT_DEG );
+    randombytes( (uint8_t*)vec.vec[0] , POLYLEN*FRI_GF_BYTELEN );
 
-    
+    uint8_t h_state[FRI_HASH_LEN];
+    randombytes( h_state , FRI_HASH_LEN );
 
-    return -1;
+    uint8_t proof[FRI_PROOF_LEN(LOGPOLYLEN)];
+    frildt_gen_proof( proof , &vec , h_state );
+
+    int succ = frildt_verify( proof , POLYLEN , h_state );
+
+    return (succ)?0:-1;
 }
 
 

@@ -36,7 +36,7 @@ typedef struct frildt_proof {
 #define FRI_AUTHPATH_LEN (FRI_LOGPOLYLEN-1)
 
 // XXX: fix this
-#define FRI_PROOF_SIZE(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY)
+#define FRI_PROOF_LEN(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY)
 
 
 
