@@ -7,9 +7,11 @@ extern  "C" {
 
 #include "preon_settings.h"
 #include "utils_hash.h"
+#include "merkeltreecommit.h"
+
 
 #define FRI_RS_RHO     RS_RHO
-
+#define FRI_RS_LOGRHO  RS_LOGRHO
 #define FRI_RS_SHIFT   RS_SHIFT
 
 #define FRI_HASH_LEN   HASH_DIGEST_LEN
@@ -32,11 +34,12 @@ typedef struct frildt_proof {
 #define FRI_POLYLEN      32
 #define FRI_LOGPOLYLEN   5
 
-#define FRI_N_MESG       (FRI_POLYLEN/2)
-#define FRI_AUTHPATH_LEN (FRI_LOGPOLYLEN-1)
+#define FRI_MT_MESG_LEN     (FRI_GF_BYTELEN*2)
+#define FRI_MT_N_MESG       (FRI_RS_RHO*FRI_POLYLEN/2)
+#define FRI_MT_AUTHPATH_LEN (FRI_RS_LOGRHO+FRI_LOGPOLYLEN-1)
 
 // XXX: fix this
-#define FRI_PROOF_LEN(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY)
+#define FRI_PROOF_LEN(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY + MT_ATUHPATH_LEN( FRI_MT_MESG_LEN , log_polylen-1 ))
 
 
 

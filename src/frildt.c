@@ -1,7 +1,9 @@
 
 #include "frildt.h"
 
+#include "merkeltreecommit.h"
 
+#include "string.h"
 
 #if 0
 
@@ -119,8 +121,26 @@ def ldt_gen_proof( f0 , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
 
 int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_state )
 {
+    gfvec_t v0;
+    gfvec_alloc( &v0 , FRI_POLYLEN*FRI_RS_RHO );
+    gfvec_fft( v0, *f0 , FRI_RS_SHIFT);
 
-    return -1;
+    gfvec_t gfmesg;
+    gfvec_alloc( &gfmesg , v0.len );
+    gfvec_to_consecutive_form( gfmesg , v0 );
+    uint8_t * ptr_mesg = (uint8_t*)gfmesg.vec[0];
+
+    mt_t mkt;
+    mt_init( &mkt , v0.len/2 );
+    mt_commit( &mkt , ptr_mesg , FRI_GF_BYTELEN*2 , v0.len/2 );
+
+    memcpy( proof , mkt.root , FRI_HASH_LEN );
+    mt_open( proof+FRI_HASH_LEN , &mkt , ptr_mesg + FRI_GF_BYTELEN*2*3 , FRI_GF_BYTELEN*2 , 3 );
+
+    mt_free( &mkt );
+    gfvec_free( &gfmesg );
+    gfvec_free( &v0 );
+    return 0;
 }
 
 

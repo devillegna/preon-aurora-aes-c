@@ -3,8 +3,8 @@
 
 
 #define RS_RHO      32
+#define RS_LOGRHO   5
 #define RS_SHIFT    0x8000000000000000
-
 
 
 

@@ -41,6 +41,8 @@ uint8_t check_eq( const uint8_t *vec0, const uint8_t *vec1, unsigned len)
 int test_0(void)
 {
     printf("test gen proof([%d])/verify.\n", POLYLEN );
+	printf("polylen: %d , log_polylen: %d\n", POLYLEN , LOGPOLYLEN );
+	printf("proof size: %d\n", FRI_PROOF_LEN(LOGPOLYLEN+FRI_RS_LOGRHO) );
 
     gfvec_t vec;
     gfvec_alloc( &vec , POLYLEN );
@@ -49,11 +51,12 @@ int test_0(void)
     uint8_t h_state[FRI_HASH_LEN];
     randombytes( h_state , FRI_HASH_LEN );
 
-    uint8_t proof[FRI_PROOF_LEN(LOGPOLYLEN)];
+    uint8_t proof[FRI_PROOF_LEN(LOGPOLYLEN+FRI_RS_LOGRHO)];
     frildt_gen_proof( proof , &vec , h_state );
 
     int succ = frildt_verify( proof , POLYLEN , h_state );
 
+	gfvec_free( &vec );
     return (succ)?0:-1;
 }
 
