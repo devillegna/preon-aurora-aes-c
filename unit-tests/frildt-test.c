@@ -57,7 +57,7 @@ int test_0(void)
     int succ = frildt_verify( proof , POLYLEN , h_state );
 
 	gfvec_free( &vec );
-    return (succ)?0:-1;
+    return succ;
 }
 
 
@@ -68,7 +68,7 @@ int main(void)
 
 	int fail = 0;
 
-    if(0 != test_0()) fail = 1;
+    if( ! test_0()) fail = 1;
 
 
 	printf((fail)?"test FAIL\n":"test PASS\n");

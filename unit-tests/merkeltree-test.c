@@ -33,7 +33,7 @@ uint8_t check_eq( const uint8_t *vec0, const uint8_t *vec1, unsigned len)
 #include "merkeltreecommit.h"
 
 
-int test_0()
+int test_0(void)
 {
     uint8_t mesgs[4*8]; for(int i=0;i<sizeof(mesgs);i++) mesgs[i]=i;
     uint8_t auth_path[4+MT_AUTH_OVERHEAD_LEN(3)];
@@ -53,7 +53,7 @@ int test_0()
     memmove( root , tree.root , HASH_DIGEST_LEN );
 
     unsigned idx = 5;
-    if( mt_open( auth_path , &tree , mesgs+4*idx , 4 , idx ) ) {
+    if( mt_open( auth_path , tree , mesgs+4*idx , 4 , idx ) ) {
         printf("mt_open() fails.\n");
         return -1;
     }

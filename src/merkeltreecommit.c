@@ -92,15 +92,15 @@ def open( msg , idx , r , mktree ):
 
 #include "string.h"
 
-int mt_open( uint8_t * auth_path, const mt_t * tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx )
+int mt_open( uint8_t * auth_path, const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx )
 {
     memmove( auth_path , mesg , mesg_len );
     auth_path += mesg_len;
-    memmove( auth_path , (tree->randomness)+mesg_idx*MT_RAND_LEN , MT_RAND_LEN );
+    memmove( auth_path , (tree.randomness)+mesg_idx*MT_RAND_LEN , MT_RAND_LEN );
     auth_path += MT_RAND_LEN;
 
-    size_t num_mesg = tree->num_mesg;
-    uint8_t * l_start = tree->leaves;
+    size_t num_mesg = tree.num_mesg;
+    uint8_t * l_start = tree.leaves;
     while( 1 < num_mesg ) {
         memmove( auth_path , l_start + (mesg_idx^1)*HASH_DIGEST_LEN , HASH_DIGEST_LEN );
         l_start   += HASH_DIGEST_LEN*num_mesg;

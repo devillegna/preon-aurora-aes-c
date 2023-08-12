@@ -135,7 +135,7 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
     mt_commit( &mkt , ptr_mesg , FRI_GF_BYTELEN*2 , v0.len/2 );
 
     memcpy( proof , mkt.root , FRI_HASH_LEN );
-    mt_open( proof+FRI_HASH_LEN , &mkt , ptr_mesg + FRI_GF_BYTELEN*2*3 , FRI_GF_BYTELEN*2 , 3 );
+    mt_open( proof+FRI_HASH_LEN , mkt , ptr_mesg + FRI_GF_BYTELEN*2*3 , FRI_GF_BYTELEN*2 , 3 );
 
     mt_free( &mkt );
     gfvec_free( &gfmesg );
@@ -253,7 +253,8 @@ def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1
 
 int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_state )
 {
+    const uint8_t * first_commit = proof;
+    const uint8_t * first_opened_mesg = proof + FRI_HASH_LEN;
 
-
-    return -1;
+    return mt_verify( first_commit , first_opened_mesg , FRI_MT_MESG_LEN , FRI_MT_N_MESG , 3 );
 }

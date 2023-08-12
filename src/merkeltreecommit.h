@@ -36,7 +36,7 @@ void mt_free( mt_t * tree );
 
 int mt_commit( mt_t * tree , const uint8_t * mesgs , unsigned mesg_len , unsigned num_mesg );
 
-int mt_open( uint8_t * auth_path , const mt_t * tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx );
+int mt_open( uint8_t * auth_path , const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx );
 
 int mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx );
 
