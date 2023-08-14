@@ -18,8 +18,8 @@ error : no gf implementation
 
 
 typedef struct gf_array {
-    unsigned len;
     uint64_t * vec[GF_EXT_DEG];
+    unsigned len;
 } gfvec_t;
 
 

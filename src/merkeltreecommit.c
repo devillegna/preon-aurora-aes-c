@@ -53,19 +53,19 @@ def commit( msgList ):
 
 #include "randombytes.h"
 
-int mt_commit( mt_t * tree , const uint8_t * mesgs , unsigned mesg_len , unsigned num_mesg )
+int mt_commit( mt_t tree , const uint8_t * mesgs , unsigned mesg_len , unsigned num_mesg )
 {
-    if( tree->num_mesg != num_mesg ) { return -1; }
+    if( tree.num_mesg != num_mesg ) { return -1; }
 
-    randombytes( tree->randomness , num_mesg*MT_RAND_LEN );
+    randombytes( tree.randomness , num_mesg*MT_RAND_LEN );
 
-    uint8_t *ptr = tree->leaves;
+    uint8_t *ptr = tree.leaves;
     for(unsigned i=0;i<num_mesg;i++) {
-        hash_2mesg( ptr , mesgs+i*mesg_len , mesg_len , (tree->randomness) + i*MT_RAND_LEN , MT_RAND_LEN );
+        hash_2mesg( ptr , mesgs+i*mesg_len , mesg_len , (tree.randomness) + i*MT_RAND_LEN , MT_RAND_LEN );
         ptr += HASH_DIGEST_LEN;
     }
 
-    uint8_t * prev_l = tree->leaves;
+    uint8_t * prev_l = tree.leaves;
     while( 1 < num_mesg ) {
         for(unsigned i=0;i<num_mesg;i+=2) {
             hash_1mesg( ptr , prev_l+i*HASH_DIGEST_LEN , HASH_DIGEST_LEN*2 );

@@ -46,7 +46,7 @@ int test_0(void)
         return -1;
     }
 
-    if( mt_commit( &tree , mesgs , 4 , 8 ) ) {
+    if( mt_commit( tree , mesgs , 4 , 8 ) ) {
         printf("mt_commit() fails.\n");
         return -1;
     }

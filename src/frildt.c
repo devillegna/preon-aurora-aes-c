@@ -132,7 +132,7 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
 
     mt_t mkt;
     mt_init( &mkt , v0.len/2 );
-    mt_commit( &mkt , ptr_mesg , FRI_GF_BYTELEN*2 , v0.len/2 );
+    mt_commit( mkt , ptr_mesg , FRI_GF_BYTELEN*2 , v0.len/2 );
 
     memcpy( proof , mkt.root , FRI_HASH_LEN );
     mt_open( proof+FRI_HASH_LEN , mkt , ptr_mesg + FRI_GF_BYTELEN*2*3 , FRI_GF_BYTELEN*2 , 3 );
