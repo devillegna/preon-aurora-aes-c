@@ -16,36 +16,56 @@ extern  "C" {
 
 #define FRI_HASH_LEN   HASH_DIGEST_LEN
 
-#define FRI_N_QUERY    26
+//#define FRI_N_QUERY    26
+#define FRI_N_QUERY    1
 
+
+#define FRI_POLYLEN      32
+#define FRI_LOGPOLYLEN   5
+#define FRI_GF_BYTES     GF_BYTES
+
+#define FRI_MT_MESG_LEN  (FRI_GF_BYTES*2)
+#define FRI_MT_N_MESG    (FRI_RS_RHO*FRI_POLYLEN/2)
+#define FRI_MT_LOGMESG   (FRI_RS_LOGRHO+FRI_LOGPOLYLEN-1)
+
+#define FRI_N_COMMIT        (FRI_LOGPOLYLEN-1)
+
+#define FRI_PRFC_N_COMMITS  (FRI_LOGPOLYLEN-2)
+#define FRI_PRFC_OPEN_LEN   (0)
+#define FRI_PRFC_LEN        (FRI_PRFC_N_COMMITS*FRI_HASH_LEN + FRI_GF_BYTES*2 + FRI_PRFC_OPEN_LEN )
+
+#define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_PRFC_LEN + FRI_N_QUERY*MT_ATUHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
 
 typedef struct frildt_proof {
+    unsigned n_commits;
+    uint8_t * first_commit;
+    uint8_t * commits[FRI_LOGPOLYLEN-2];
+    uint8_t * d1poly;
+    uint8_t * open_mesgs[FRI_LOGPOLYLEN-2];
+    uint8_t * first_mesgs;
 //    n_commits = ldt_n_commit( _poly_len )
 //    first_commit = proof[0]
-    uint8_t * first_commit;
 //    commits     = proof[1:1+n_commits]
 //    d1poly      = proof[1+n_commits]
 //    open_mesgs  = proof[2+n_commits:2+n_commits+n_commits]
 //    first_mesgs = proof[2+n_commits+n_commits]
 } frildt_proof_t;
 
-
-#define FRI_GF_BYTELEN   24
-#define FRI_POLYLEN      32
-#define FRI_LOGPOLYLEN   5
-
-#define FRI_MT_MESG_LEN     (FRI_GF_BYTELEN*2)
-#define FRI_MT_N_MESG       (FRI_RS_RHO*FRI_POLYLEN/2)
-#define FRI_MT_AUTHPATH_LEN (FRI_RS_LOGRHO+FRI_LOGPOLYLEN-1)
-
-// XXX: fix this
-#define FRI_PROOF_LEN(log_polylen)    (log_polylen*FRI_HASH_LEN + FRI_N_QUERY + MT_ATUHPATH_LEN( FRI_MT_MESG_LEN , log_polylen-1 ))
+static inline
+void frildt_proof( frildt_proof_t * prf_ptr , const uint8_t * prf )
+{
+    prf_ptr->n_commits = FRI_PRFC_N_COMMITS;
+    prf_ptr->first_commit = prf;
+}
 
 
 
 #include "gfvec.h"
 
 //def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbose = 1 ):  return commits , d1poly , mktrees , h_state
+
+
+int frildt_commit_phase( uint8_t * proof , uint8_t *h_state );
 
 //def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):  return open_mesgs , _queries
 

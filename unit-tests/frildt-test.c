@@ -42,16 +42,16 @@ int test_0(void)
 {
     printf("test gen proof([%d])/verify.\n", POLYLEN );
 	printf("polylen: %d , log_polylen: %d\n", POLYLEN , LOGPOLYLEN );
-	printf("proof size: %d\n", FRI_PROOF_LEN(LOGPOLYLEN+FRI_RS_LOGRHO) );
+	printf("proof size: %d\n", FRI_PROOF_LEN );
 
     gfvec_t vec;
     gfvec_alloc( &vec , POLYLEN );
-    randombytes( (uint8_t*)vec.vec[0] , POLYLEN*FRI_GF_BYTELEN );
+    randombytes( (uint8_t*)vec.vec[0] , POLYLEN*FRI_GF_BYTES );
 
     uint8_t h_state[FRI_HASH_LEN];
     randombytes( h_state , FRI_HASH_LEN );
 
-    uint8_t proof[FRI_PROOF_LEN(LOGPOLYLEN+FRI_RS_LOGRHO)];
+    uint8_t proof[FRI_PROOF_LEN];
     frildt_gen_proof( proof , &vec , h_state );
 
     int succ = frildt_verify( proof , POLYLEN , h_state );
