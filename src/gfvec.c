@@ -1,5 +1,4 @@
-#include "gf2192.h"
-
+#include "gfvec.h"
 
 #include "stdlib.h"
 
@@ -29,6 +28,12 @@ void gfvec_free( gfvec_t *v)
     v->len = 0;
     for(int i=0;i<GF_EXT_DEG;i++) v->vec[i]=NULL;
 }
+
+
+
+/////////////////////////////////////////////////////
+
+
 
 #include "btfy.h"
 

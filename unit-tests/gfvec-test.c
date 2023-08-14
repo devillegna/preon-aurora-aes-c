@@ -32,7 +32,7 @@ uint8_t check_eq( const uint8_t *vec0, const uint8_t *vec1, unsigned len)
 
 #include "randombytes.h"
 
-#include "gf2192.h"
+#include "gfvec.h"
 
 #include "btfy.h"
 

@@ -7,6 +7,8 @@
 #define RS_SHIFT    0x8000000000000000
 
 
+#define GF_BITS     192
+#define GF_BYTES    (GF_BITS/8)
 
 
 #endif

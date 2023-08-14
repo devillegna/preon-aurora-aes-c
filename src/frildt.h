@@ -43,7 +43,7 @@ typedef struct frildt_proof {
 
 
 
-#include "gf2192.h"
+#include "gfvec.h"
 
 //def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbose = 1 ):  return commits , d1poly , mktrees , h_state
 
