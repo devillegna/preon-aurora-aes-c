@@ -44,7 +44,7 @@ int test_0(void)
     gfvec_t vec;
 
     gfvec_alloc( &vec , 32 );
-    randombytes( (uint8_t*)vec.vec[0] , 32*8*GF_EXT_DEG );
+    randombytes( (uint8_t*)vec.sto , 32*8*GF_EXT_DEG );
 
     btfy_64( vec.vec[0] , 5 , 0 );
     btfy_64( vec.vec[1] , 5 , 0 );

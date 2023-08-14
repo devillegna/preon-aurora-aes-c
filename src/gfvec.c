@@ -14,6 +14,7 @@ int gfvec_alloc( gfvec_t *v, unsigned len )
     if( NULL==buffer ) return -1;
 
     v->len = len;
+    v->sto = buffer;
     for(int i=0;i<GF_EXT_DEG;i++) {
         v->vec[i] = buffer;
         buffer += len;
@@ -23,13 +24,43 @@ int gfvec_alloc( gfvec_t *v, unsigned len )
 
 void gfvec_free( gfvec_t *v)
 {
-    free( v->vec[0] );
-
+    free( v->sto );
+    v->sto = NULL;
     v->len = 0;
     for(int i=0;i<GF_EXT_DEG;i++) v->vec[i]=NULL;
 }
 
 
+////////////////////////////////////////////////////
+
+#if 24 == GF_BYTES
+
+#include "gf2192.h"
+
+
+void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf )
+{
+    for(unsigned i=0;i<vec.len;i++) {
+        gf2192_mul( vec.vec[0]+i , vec.vec[1]+i , vec.vec[2]+i , vec.vec[0][i] , vec.vec[1][i] , vec.vec[2][i] , gf[0] , gf[1] , gf[2] );
+    }
+}
+
+void gfvec_frildt_reduce( gfvec_t *polyx2, const uint64_t *xi )
+{
+    unsigned polylen = polyx2->len/2;
+    for(unsigned i=0;i<polylen;i++) {
+        uint64_t t0,t1,t2;
+        gf2192_mul( &t0 , &t1 , &t2 , polyx2->vec[0][1+i*2] , polyx2->vec[1][1+i*2] , polyx2->vec[2][1+i*2] , xi[0] , xi[1] , xi[2] ); // odd terms * xi
+        polyx2->vec[0][i] = polyx2->vec[0][i*2]^t0;
+        polyx2->vec[1][i] = polyx2->vec[1][i*2]^t1;
+        polyx2->vec[2][i] = polyx2->vec[2][i*2]^t2;
+    }
+    polyx2->len = polylen;
+}
+
+
+
+#endif
 
 /////////////////////////////////////////////////////
 

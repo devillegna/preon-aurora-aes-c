@@ -31,10 +31,10 @@ extern  "C" {
 #define FRI_N_COMMIT        (FRI_LOGPOLYLEN-1)
 
 #define FRI_PRFC_N_COMMITS  (FRI_LOGPOLYLEN-2)
-#define FRI_PRFC_OPEN_LEN   (0)
+#define FRI_PRFC_OPEN_LEN   (FRI_N_QUERY*(FRI_PRFC_N_COMMITS)*(MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,2)+MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-1))/2)
 #define FRI_PRFC_LEN        (FRI_PRFC_N_COMMITS*FRI_HASH_LEN + FRI_GF_BYTES*2 + FRI_PRFC_OPEN_LEN )
 
-#define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_PRFC_LEN + FRI_N_QUERY*MT_ATUHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
+#define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_PRFC_LEN + FRI_N_QUERY*MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
 
 typedef struct frildt_proof {
     unsigned n_commits;
@@ -52,10 +52,18 @@ typedef struct frildt_proof {
 } frildt_proof_t;
 
 static inline
-void frildt_proof( frildt_proof_t * prf_ptr , const uint8_t * prf )
+void frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
 {
     prf_ptr->n_commits = FRI_PRFC_N_COMMITS;
-    prf_ptr->first_commit = prf;
+    prf_ptr->first_commit = prf;    prf += FRI_HASH_LEN;
+    for(int i=0;i<FRI_PRFC_N_COMMITS;i++) {
+        prf_ptr->commits[i] = prf;  prf += FRI_HASH_LEN;
+    }
+    prf_ptr->d1poly = prf;          prf += 2*FRI_GF_BYTES;
+    for(int i=0;i<FRI_PRFC_N_COMMITS;i++) {
+        prf_ptr->open_mesgs[i] = prf;  prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG-(i+1) );
+    }
+    prf_ptr->first_mesgs = prf;
 }
 
 
@@ -64,8 +72,7 @@ void frildt_proof( frildt_proof_t * prf_ptr , const uint8_t * prf )
 
 //def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbose = 1 ):  return commits , d1poly , mktrees , h_state
 
-
-int frildt_commit_phase( uint8_t * proof , uint8_t *h_state );
+int frildt_commit_phase( uint8_t * proof , mt_t mts[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state );
 
 //def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):  return open_mesgs , _queries
 

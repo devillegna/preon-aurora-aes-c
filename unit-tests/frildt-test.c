@@ -51,11 +51,12 @@ int test_0(void)
     uint8_t h_state[FRI_HASH_LEN];
     randombytes( h_state , FRI_HASH_LEN );
 
-    uint8_t proof[FRI_PROOF_LEN];
+    uint8_t * proof = (uint8_t*)malloc(FRI_PROOF_LEN);
     frildt_gen_proof( proof , &vec , h_state );
 
     int succ = frildt_verify( proof , POLYLEN , h_state );
 
+    free( proof );
 	gfvec_free( &vec );
     return succ;
 }

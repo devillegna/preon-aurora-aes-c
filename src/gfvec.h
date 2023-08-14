@@ -18,6 +18,7 @@ error : no gf implementation
 
 
 typedef struct gf_array {
+    uint64_t * sto;
     uint64_t * vec[GF_EXT_DEG];
     unsigned len;
 } gfvec_t;
@@ -35,6 +36,10 @@ void gfvec_to_consecutive_form( gfvec_t dest, const gfvec_t src ) {
         ptr += GF_EXT_DEG;
     }
 }
+
+void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );
+
+void gfvec_frildt_reduce( gfvec_t *polyx2, const uint64_t *xi );
 
 void gfvec_fft( gfvec_t dest, const gfvec_t src , uint64_t shift );
 

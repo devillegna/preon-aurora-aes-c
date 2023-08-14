@@ -65,6 +65,13 @@ def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbo
 
 #endif
 
+int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state )
+{
+
+
+    return 0;
+}
+
 
 
 #if 0
@@ -125,20 +132,26 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
     gfvec_alloc( &v0 , FRI_POLYLEN*FRI_RS_RHO );
     gfvec_fft( v0, *f0 , FRI_RS_SHIFT);
 
+    mt_t mkt;
+    mt_init( &mkt , v0.len/2 );
     gfvec_t gfmesg;
     gfvec_alloc( &gfmesg , v0.len );
     gfvec_to_consecutive_form( gfmesg , v0 );
-    uint8_t * ptr_mesg = (uint8_t*)gfmesg.vec[0];
+    mt_commit( mkt , (uint8_t*)gfmesg.sto , FRI_MT_MESG_LEN , FRI_MT_N_MESG );
 
-    mt_t mkt;
-    mt_init( &mkt , v0.len/2 );
-    mt_commit( mkt , ptr_mesg , FRI_GF_BYTES*2 , v0.len/2 );
 
-    memcpy( proof , mkt.root , FRI_HASH_LEN );
-    mt_open( proof+FRI_HASH_LEN , mkt , ptr_mesg + FRI_GF_BYTES*2*3 , FRI_GF_BYTES*2 , 3 );
+    frildt_proof_t ptr_proof;
+    frildt_proof_setptr( &ptr_proof , proof );
 
-    mt_free( &mkt );
+    memcpy( ptr_proof.first_commit , mkt.root , FRI_HASH_LEN );  // output first commit
+
+
+
+
+    mt_open( ptr_proof.first_commit+FRI_HASH_LEN , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit
+
     gfvec_free( &gfmesg );
+    mt_free( &mkt );
     gfvec_free( &v0 );
     return 0;
 }
@@ -253,8 +266,8 @@ def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1
 
 int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_state )
 {
-    const uint8_t * first_commit = proof;
-    const uint8_t * first_opened_mesg = proof + FRI_HASH_LEN;
+    frildt_proof_t ptr_proof;
+    frildt_proof_setptr( &ptr_proof , (uint8_t *)proof );
 
-    return mt_verify( first_commit , first_opened_mesg , FRI_MT_MESG_LEN , FRI_MT_N_MESG , 3 );
+    return mt_verify( ptr_proof.first_commit , ptr_proof.first_commit+FRI_HASH_LEN , FRI_MT_MESG_LEN , FRI_MT_N_MESG , 3 );
 }

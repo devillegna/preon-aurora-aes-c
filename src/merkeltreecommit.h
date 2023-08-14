@@ -19,7 +19,7 @@ extern  "C" {
 
 #define MT_AUTH_OVERHEAD_LEN( log_n_mesg )         (MT_RAND_LEN+(log_n_mesg)*HASH_DIGEST_LEN)
 
-#define MT_ATUHPATH_LEN( mesg_len , log_n_mesg )   (mesg_len+(MT_AUTH_OVERHEAD_LEN(log_n_mesg)))
+#define MT_AUTHPATH_LEN( mesg_len , log_n_mesg )   (mesg_len+(MT_AUTH_OVERHEAD_LEN(log_n_mesg)))
 
 
 typedef struct merkeltree {
