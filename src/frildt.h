@@ -30,18 +30,18 @@ extern  "C" {
 
 #define FRI_N_COMMIT        (FRI_LOGPOLYLEN-1)
 
-#define FRI_PRFC_N_COMMITS  (FRI_LOGPOLYLEN-2)
-#define FRI_PRFC_OPEN_LEN   (FRI_N_QUERY*(FRI_PRFC_N_COMMITS)*(MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,2)+MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-1))/2)
-#define FRI_PRFC_LEN        (FRI_PRFC_N_COMMITS*FRI_HASH_LEN + FRI_GF_BYTES*2 + FRI_PRFC_OPEN_LEN )
+#define FRI_CORE_N_COMMITS  (FRI_LOGPOLYLEN-2)
+#define FRI_CORE_OPEN_LEN   (FRI_N_QUERY*(FRI_CORE_N_COMMITS)*(MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-FRI_CORE_N_COMMITS)+MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-1))/2)
+#define FRI_CORE_LEN        (FRI_CORE_N_COMMITS*FRI_HASH_LEN + FRI_GF_BYTES*2 + FRI_CORE_OPEN_LEN )
 
-#define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_PRFC_LEN + FRI_N_QUERY*MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
+#define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_CORE_LEN + FRI_N_QUERY*MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
 
-typedef struct frildt_proof {
+typedef struct _frildt_proof_ {
     unsigned n_commits;
     uint8_t * first_commit;
-    uint8_t * commits[FRI_LOGPOLYLEN-2];
+    uint8_t * commits[FRI_CORE_N_COMMITS];
     uint8_t * d1poly;
-    uint8_t * open_mesgs[FRI_LOGPOLYLEN-2];
+    uint8_t * open_mesgs[FRI_CORE_N_COMMITS];
     uint8_t * first_mesgs;
 //    n_commits = ldt_n_commit( _poly_len )
 //    first_commit = proof[0]
@@ -52,18 +52,20 @@ typedef struct frildt_proof {
 } frildt_proof_t;
 
 static inline
-void frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
+size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
 {
-    prf_ptr->n_commits = FRI_PRFC_N_COMMITS;
-    prf_ptr->first_commit = prf;    prf += FRI_HASH_LEN;
-    for(int i=0;i<FRI_PRFC_N_COMMITS;i++) {
-        prf_ptr->commits[i] = prf;  prf += FRI_HASH_LEN;
+    prf_ptr->n_commits = FRI_CORE_N_COMMITS;
+    uint8_t * backup = prf;
+    prf_ptr->first_commit = prf;       prf += FRI_HASH_LEN;
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
+        prf_ptr->commits[i] = prf;     prf += FRI_HASH_LEN;
     }
-    prf_ptr->d1poly = prf;          prf += 2*FRI_GF_BYTES;
-    for(int i=0;i<FRI_PRFC_N_COMMITS;i++) {
+    prf_ptr->d1poly = prf;             prf += 2*FRI_GF_BYTES;
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
         prf_ptr->open_mesgs[i] = prf;  prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG-(i+1) );
     }
-    prf_ptr->first_mesgs = prf;
+    prf_ptr->first_mesgs = prf;        prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG );
+    return prf-backup;
 }
 
 

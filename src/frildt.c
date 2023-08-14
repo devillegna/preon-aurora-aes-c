@@ -142,13 +142,14 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
 
     frildt_proof_t ptr_proof;
     frildt_proof_setptr( &ptr_proof , proof );
+    //printf("proof size: %d\n", size );
 
     memcpy( ptr_proof.first_commit , mkt.root , FRI_HASH_LEN );  // output first commit
 
 
 
 
-    mt_open( ptr_proof.first_commit+FRI_HASH_LEN , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit
+    mt_open( ptr_proof.first_mesgs , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit
 
     gfvec_free( &gfmesg );
     mt_free( &mkt );
@@ -269,5 +270,5 @@ int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_
     frildt_proof_t ptr_proof;
     frildt_proof_setptr( &ptr_proof , (uint8_t *)proof );
 
-    return mt_verify( ptr_proof.first_commit , ptr_proof.first_commit+FRI_HASH_LEN , FRI_MT_MESG_LEN , FRI_MT_N_MESG , 3 );
+    return mt_verify( ptr_proof.first_commit , ptr_proof.first_mesgs , FRI_MT_MESG_LEN , FRI_MT_N_MESG , 3 );
 }
