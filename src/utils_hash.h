@@ -57,6 +57,15 @@ static inline void hash_2mesg( unsigned char *digest , const unsigned char *mesg
     hash_final_digest( digest , &ctx0 );
 }
 
+static inline void hash_3mesg( unsigned char *digest , const unsigned char *mesg0, size_t mlen0, const unsigned char *mesg1, size_t mlen1, const unsigned char *mesg2, size_t mlen2 ) {
+    hash_ctx ctx0;
+    hash_init( &ctx0 );
+    hash_update( &ctx0, mesg0, mlen0 );
+    hash_update( &ctx0, mesg1, mlen1 );
+    hash_update( &ctx0, mesg2, mlen2 );
+    hash_final_digest( digest , &ctx0 );
+}
+
 
 #ifdef  __cplusplus
 }

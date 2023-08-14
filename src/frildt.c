@@ -65,11 +65,71 @@ def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbo
 
 #endif
 
+#include "utils_hash.h"
+
 int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state )
 {
+    int ret = 0;
 
+    uint64_t xi[FRI_HASH_LEN/sizeof(uint64_t)];
+    uint8_t *u8ptr_xi = (uint8_t*) xi;
+    uint8_t bytes[2] = {3,1};
 
-    return 0;
+    uint8_t i = 0;
+    uint64_t offset = FRI_RS_SHIFT;
+    gfvec_t vi = v0;
+    gfvec_t mesg;  if( gfvec_alloc(&mesg,v0.len/2) ) { ret = -1; goto commit_exit; }
+
+    while( 2 < poly_len ) {
+        //xi = gf.from_bytes( H.gen( h_state , bytes([3+i,1]) )[:gf.GF_BSIZE] )
+        bytes[0] = 3+i;
+        hash_2mesg( u8ptr_xi , h_state , FRI_HASH_LEN , bytes , 2 );
+
+        //printf("iter: %d, polylen = %d, vi.len = %d\n", i , poly_len , vi.len );
+        //vi = gf.ibtfy_1( vi , offset )
+        gfvec_ibtfy_1stage( vi , offset );
+        //vi_e = vi[::2] //vi_o = vi[1::2] //vi = [ vi_e[j]^gf.mul(vi_o[j],xi) for j in range(len(vi_e)) ]
+        gfvec_frildt_reduce( &vi , xi );
+
+        offset   >>= 1;
+        poly_len >>= 1;
+        if( poly_len*FRI_RS_RHO != vi.len ) { abort(); } //assert( vi.len == poly_len*FRI_RS_RHO );
+        i += 1;
+        if ( poly_len <= 2 ) break;
+
+        //mesg = [ gf.to_bytes(vi[j]) + gf.to_bytes(vi[j+1]) for j in range(0,len(vi),2) ]
+        gfvec_to_consecutive_form( mesg , vi );
+        //root , randomness , tree = mt.commit( mesg )
+        //mktrees.append( (root,mesg,randomness,tree) )
+        //printf( "mktrees[i-1].num_mesg = %d, poly_len*FRI_RS_RHO/2 = %d\n" , mktrees[i-1].num_mesg , poly_len*FRI_RS_RHO/2 );
+        if( mt_commit( mktrees[i-1] , (uint8_t*)mesg.sto , FRI_MT_MESG_LEN , poly_len*FRI_RS_RHO/2 ) ) { ret=-1; goto commit_clean_exit; }
+        // mt_commit( mktrees[i-1] , (uint8_t*)mesg.sto , FRI_MT_MESG_LEN , poly_len*FRI_RS_RHO/2 )
+
+        //commits.append( root )
+        memcpy( proof , mktrees[i-1].root , FRI_HASH_LEN );   proof += FRI_HASH_LEN;
+
+        //h_state = H.gen( h_state , gf.to_bytes(xi) , root )
+        hash_3mesg( h_state , h_state , FRI_HASH_LEN , u8ptr_xi , FRI_GF_BYTES , mktrees[i-1].root , FRI_HASH_LEN );
+    }
+    //cc = gf.ifft( vi[:2] , 1 , offset )   # will get the same poly no matter applying ibtfy_1 to whatever pairs. 
+    vi.len = 2;
+    gfvec_ibtfy_1stage( vi , offset );
+
+    //dump( "cc:" , [hex(i) for i in cc ] )
+    //dump( f"open deg 1 poly: {hex(cc[0])} + x* {hex(cc[1])}" )
+    //d1poly = gf.to_bytes(cc[0]) + gf.to_bytes(cc[1])
+    gfvec_to_consecutive_form( mesg , vi );
+    memcpy( proof , mesg.sto , 2*FRI_GF_BYTES );  proof += 2*FRI_GF_BYTES;
+
+    //h_state = H.gen( gf.to_bytes(xi) , d1poly )
+    hash_2mesg( h_state , h_state , FRI_HASH_LEN , (uint8_t*)mesg.sto , 2*FRI_GF_BYTES );
+    //dump( f"update h_state <- H( xi || c0 || c1 ): {h_state}" )
+    //return commits , d1poly , mktrees , h_state
+
+commit_clean_exit:
+    gfvec_free(&mesg);
+commit_exit:
+    return ret;
 }
 
 
@@ -87,7 +147,31 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
     queries = [ int.from_bytes(e,'little')&idx_mask for e in queries ]
     _queries = list(queries)
     dump( f"Queries: [{len(queries)}], {queries}" )
+#endif
 
+static void frildt_get_queries( uint32_t * queries , const uint8_t * h_state ) {
+#if FRI_N_QUERY >= 256 
+FRI_N_QUERY error: QUERY overflow.
+#endif
+#if FRI_CORE_N_COMMITS >=253
+FRI_CORE_N_COMMITS error: QUERY overflow.
+#endif
+    //queries = [ H.gen(h_state,bytes( [ 3+ldt_n_commit(f_length)+1 , j ] ))[:4] for j in range(1,Nq+1) ]   # use 32 bits of hash results only
+    //idx_mask = (RS_rho*f_length//2)-1
+    //queries = [ int.from_bytes(e,'little')&idx_mask for e in queries ]
+
+    uint32_t h32_state[FRI_HASH_LEN/sizeof(uint32_t)];
+    uint8_t bytes[2] = { 3 + FRI_CORE_N_COMMITS , 0};
+    uint32_t idx_mask = FRI_MT_N_MESG*2 - 1;
+    for(uint8_t j=1;j<=FRI_N_QUERY;j++) {
+        hash_2mesg( h32_state , h_state , FRI_HASH_LEN , bytes , 2 );
+        queries[j-1] = h32_state[0]&idx_mask;
+    }
+}
+
+#if 0
+def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):
+    #...
     # no need to open valuse of f_0
     queries = [ q//2 for q in queries ]
 
@@ -101,6 +185,17 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
         j = j+1
     return open_mesgs , _queries
 #endif
+
+static void frildt_batchopen( uint8_t * proof , mt_t mktrees[] , const uint32_t * queries ) {
+    uint32_t qq[FRI_N_QUERY];
+    for(int i=0;i<FRI_N_QUERY;i++) qq[i] = queries[i]>>1;
+
+    for(int j=0;j<FRI_CORE_N_COMMITS;j++) {
+        // open ....
+
+
+    }
+}
 
 
 #if 0
@@ -126,7 +221,7 @@ def ldt_gen_proof( f0 , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
 #endif
 
 
-int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_state )
+int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_state )
 {
     gfvec_t v0;
     gfvec_alloc( &v0 , FRI_POLYLEN*FRI_RS_RHO );
@@ -143,13 +238,22 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
     frildt_proof_t ptr_proof;
     frildt_proof_setptr( &ptr_proof , proof );
     //printf("proof size: %d\n", size );
-
     memcpy( ptr_proof.first_commit , mkt.root , FRI_HASH_LEN );  // output first commit
+
+    uint8_t h_state[FRI_HASH_LEN];  memcpy( h_state , ih_state , FRI_HASH_LEN );
+    mt_t mkts[FRI_CORE_N_COMMITS];
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_init( &mkts[i] , FRI_MT_N_MESG>>(1+i) ); }
+    if( 0 != frildt_commit_phase( ptr_proof.commits[0] , mkts , v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
+    // frildt_commit_phase( ptr_proof.commits[0] , mkts , v0 , FRI_POLYLEN , h_state );
+
 
 
 
 
     mt_open( ptr_proof.first_mesgs , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit
+
+
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_free( &mkts[i] ); }
 
     gfvec_free( &gfmesg );
     mt_free( &mkt );
