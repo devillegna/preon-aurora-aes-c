@@ -53,6 +53,13 @@ typedef struct _frildt_proof_ {
 } frildt_proof_t;
 
 static inline
+void frildt_setptr_openmesgs( uint8_t *open_mesgs[] , uint8_t * prf ) {
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
+        open_mesgs[i] = prf;  prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG-(i+1) );
+    }
+}
+
+static inline
 size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
 {
     prf_ptr->n_commits = FRI_CORE_N_COMMITS;
@@ -62,9 +69,10 @@ size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
         prf_ptr->commits[i] = prf;     prf += FRI_HASH_LEN;
     }
     prf_ptr->d1poly = prf;             prf += 2*FRI_GF_BYTES;
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
-        prf_ptr->open_mesgs[i] = prf;  prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG-(i+1) );
-    }
+    frildt_setptr_openmesgs( prf_ptr->open_mesgs , prf );   prf += FRI_CORE_OPEN_LEN;
+    //for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
+    //    prf_ptr->open_mesgs[i] = prf;  prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG-(i+1) );
+    //}
     prf_ptr->first_mesgs = prf;        prf += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG );
     return prf-backup;
 }
@@ -97,7 +105,7 @@ void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t
 
 int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * queries );
 
-//int frildt_verify_linear_relation(  )
+int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi );
 
 //def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ): -> Bool
 

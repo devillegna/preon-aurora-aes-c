@@ -36,6 +36,14 @@ void gfvec_to_u64vec( uint64_t* dest, const gfvec_t src ) {
     }
 }
 
+static inline
+void gfvec_from_u64vec( gfvec_t dest, const uint64_t* src ) {
+    for(unsigned i=0;i<dest.len;i++) {
+        for(int j=0;j<GF_EXT_DEG;j++) dest.vec[j][i]=src[j];
+        src += GF_EXT_DEG;
+    }
+}
+
 void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );
 
 void gfvec_frildt_reduce( gfvec_t *polyx2, const uint64_t *xi );

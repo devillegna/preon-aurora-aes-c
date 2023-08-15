@@ -214,6 +214,26 @@ void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t
 
 
 
+int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * _queries )
+{
+    int r;
+    uint32_t queries[FRI_N_QUERY];  memcpy( queries , _queries , FRI_N_QUERY * sizeof(uint32_t));
+    unsigned n_mesgs = FRI_MT_N_MESG;
+    unsigned log_n_mesgs = FRI_MT_LOGMESG;
+    for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
+        for(int j=0;j<FRI_N_QUERY;j++) queries[j] >>= 1;
+        n_mesgs >>= 1;
+        log_n_mesgs -= 1;
+        r = mt_batchverify( commits , open_mesgs , FRI_MT_MESG_LEN , n_mesgs , queries , FRI_N_QUERY );
+        if (!r) return 0;
+        commits += FRI_HASH_LEN;
+        open_mesgs += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , log_n_mesgs );
+    }
+    return 1;
+}
+
+
+
 
 #if 0
 def ldt_verify_proof( commits , d1poly , first_mesgs , open_mesgs , xi , queries , RS_shift=1<<63 , verbose = 1 ):
@@ -273,6 +293,16 @@ def _check_deg1poly_linear_relation( mesgjm1 , d1poly , idx , xi , offset ) :
     return _check_linear_relation( mesgjm1 , gf.to_bytes(m0[0])+gf.to_bytes(m0[1]) , idx , xi , offset )
 #endif
 
+
+int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi )
+{
+
+
+
+    return 0;
+}
+
+
 #if 0
 def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):
     n_commits = ldt_n_commit( _poly_len )
@@ -287,25 +317,6 @@ def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1
 
     return ldt_verify_proof(commits,d1poly,[path[0] for path in first_mesgs],open_mesgs,xi,queries,1<<63,verbose)
 #endif
-
-int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * _queries )
-{
-    int r;
-    uint32_t queries[FRI_N_QUERY];  memcpy( queries , _queries , FRI_N_QUERY * sizeof(uint32_t));
-    unsigned n_mesgs = FRI_MT_N_MESG;
-    unsigned log_n_mesgs = FRI_MT_LOGMESG;
-    for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
-        for(int j=0;j<FRI_N_QUERY;j++) queries[j] >>= 1;
-        n_mesgs >>= 1;
-        log_n_mesgs -= 1;
-        r = mt_batchverify( commits , open_mesgs , FRI_MT_MESG_LEN , n_mesgs , queries , FRI_N_QUERY );
-        if (!r) return 0;
-        commits += FRI_HASH_LEN;
-        open_mesgs += FRI_N_QUERY * MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , log_n_mesgs );
-    }
-    return 1;
-}
-
 
 int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_state )
 {
@@ -327,11 +338,11 @@ int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_
     r = frildt_verify_commit_open( ptr_proof.commits[0] , ptr_proof.open_mesgs[0] , queries );
     if( !r ) return 0;
 
-    //uint64_t first_message[ FRI_N_QUERY * FRI_MT_MESG_LEN / sizeof(uint64_t) ];
-    //unsigned auth_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG );
-    //for(int i=0;i< FRI_N_QUERY; i++ ) {
-    //    memcpy( &first_message[i*FRI_MT_MESG_LEN / sizeof(uint64_t)] , ptr_proof.first_commit + i*auth_len , FRI_ME_MESG_LEN );
-    //}
+    uint64_t first_mesgs[ FRI_N_QUERY * FRI_MT_MESG_LEN / sizeof(uint64_t) ];
+    unsigned auth_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG );
+    for(int i=0;i< FRI_N_QUERY; i++ ) {
+        memcpy( &first_mesgs[i*FRI_MT_MESG_LEN / sizeof(uint64_t)] , ptr_proof.first_commit + i*auth_len , FRI_MT_MESG_LEN );
+    }
 
-    return 1;
+    return frildt_verify_linear_relation( (uint8_t*)first_mesgs , ptr_proof.commits[0] , ptr_proof.d1poly , xi );
 }
