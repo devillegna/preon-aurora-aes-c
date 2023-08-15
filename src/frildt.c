@@ -117,11 +117,13 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], gfv
     //dump( "cc:" , [hex(i) for i in cc ] )
     //dump( f"open deg 1 poly: {hex(cc[0])} + x* {hex(cc[1])}" )
     //d1poly = gf.to_bytes(cc[0]) + gf.to_bytes(cc[1])
-    gfvec_to_consecutive_form( mesg , vi );
-    memcpy( proof , mesg.sto , 2*FRI_GF_BYTES );  proof += 2*FRI_GF_BYTES;
+    gfvec_t d1poly;  gfvec_alloc(&d1poly,2);
+    gfvec_to_consecutive_form( d1poly , vi );
+    memcpy( proof , d1poly.sto , 2*FRI_GF_BYTES );  proof += 2*FRI_GF_BYTES;
 
     //h_state = H.gen( gf.to_bytes(xi) , d1poly )
-    hash_2mesg( h_state , h_state , FRI_HASH_LEN , (uint8_t*)mesg.sto , 2*FRI_GF_BYTES );
+    hash_2mesg( h_state , h_state , FRI_HASH_LEN , (uint8_t*)d1poly.sto , 2*FRI_GF_BYTES );
+    gfvec_free(&d1poly);
     //dump( f"update h_state <- H( xi || c0 || c1 ): {h_state}" )
     //return commits , d1poly , mktrees , h_state
 
@@ -146,7 +148,7 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
     dump( f"Queries: [{len(queries)}], {queries}" )
 #endif
 
-static void frildt_get_queries( uint32_t * queries , const uint8_t * h_state ) {
+void frildt_get_queries( uint32_t * queries , const uint8_t * h_state ) {
 #if FRI_N_QUERY >= 256 
 FRI_N_QUERY error: QUERY overflow.
 #endif
@@ -161,7 +163,7 @@ FRI_CORE_N_COMMITS error: QUERY overflow.
     uint8_t bytes[2] = { 3 + FRI_CORE_N_COMMITS , 0};
     uint32_t idx_mask = FRI_MT_N_MESG*2 - 1;
     for(uint8_t j=1;j<=FRI_N_QUERY;j++) {
-        hash_2mesg( h32_state , h_state , FRI_HASH_LEN , bytes , 2 );
+        hash_2mesg( (uint8_t*)h32_state , h_state , FRI_HASH_LEN , bytes , 2 );
         queries[j-1] = h32_state[0]&idx_mask;
     }
 }
@@ -183,7 +185,7 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
     return open_mesgs , _queries
 #endif
 
-static void frildt_batchopen( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], const uint32_t * queries ) {
+void frildt_query_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], const uint32_t * queries ) {
     uint32_t qq[FRI_N_QUERY];
     for(int i=0;i<FRI_N_QUERY;i++) qq[i] = queries[i]>>1;
 
@@ -192,8 +194,9 @@ static void frildt_batchopen( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[]
         lognmesg -= 1;
         unsigned authpath_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , lognmesg );
         for(int i=0;i<FRI_N_QUERY;i++) {
-            mt_open( proof , mktrees[j] , mesgs[j] , FRI_MT_MESG_LEN , qq[i] );
+            mt_open( proof , mktrees[j] , ((uint8_t*)mesgs[j].sto)+qq[i]*FRI_MT_MESG_LEN , FRI_MT_MESG_LEN , qq[i] );
             proof += authpath_len;
+            qq[i] >>= 1;
         }
     }
 }
@@ -254,9 +257,10 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
     if( 0 != frildt_commit_phase( ptr_proof.commits[0] , mkts, mesgs, v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
     // frildt_commit_phase( ptr_proof.commits[0] , mkts , v0 , FRI_POLYLEN , h_state );
 
+    uint32_t queries[FRI_N_QUERY];
+    frildt_get_queries( queries , h_state );
 
-
-
+    frildt_query_phase( ptr_proof.open_mesgs[0] , mkts , mesgs , queries );
 
     // first opened mesgs
     mt_open( ptr_proof.first_mesgs , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit

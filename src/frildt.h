@@ -78,7 +78,9 @@ int frildt_commit_phase( uint8_t * proof , mt_t mts[] , gfvec_t mesgs[], gfvec_t
 
 //def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):  return open_mesgs , _queries
 
-int frildt_query_phase( uint8_t * proof , mt_t mts[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state );
+void frildt_get_queries( uint32_t * queries , const uint8_t * h_state );
+
+void frildt_query_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], const uint32_t * queries );
 
 //def ldt_gen_proof( f0 , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ):     return proof
 
