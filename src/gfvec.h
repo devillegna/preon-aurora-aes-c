@@ -29,11 +29,10 @@ int gfvec_alloc( gfvec_t *v, unsigned len );
 void gfvec_free( gfvec_t *v);
 
 static inline
-void gfvec_to_consecutive_form( gfvec_t dest, const gfvec_t src ) {
-    uint64_t *ptr = dest.sto;
+void gfvec_to_u64vec( uint64_t* dest, const gfvec_t src ) {
     for(unsigned i=0;i<src.len;i++) {
-        for(int j=0;j<GF_EXT_DEG;j++) ptr[j]=src.vec[j][i];
-        ptr += GF_EXT_DEG;
+        for(int j=0;j<GF_EXT_DEG;j++) dest[j]=src.vec[j][i];
+        dest += GF_EXT_DEG;
     }
 }
 

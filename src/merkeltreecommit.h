@@ -23,10 +23,10 @@ extern  "C" {
 
 
 typedef struct merkeltree {
-  size_t num_mesg;
   uint8_t * root;
   uint8_t * randomness;
   uint8_t * leaves;
+  unsigned  num_mesg;
 } mt_t;
 
 
@@ -36,11 +36,32 @@ void mt_free( mt_t * tree );
 
 int mt_commit( mt_t tree , const uint8_t * mesgs , unsigned mesg_len , unsigned num_mesg );
 
-int mt_open( uint8_t * auth_path , const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx );
+void mt_open( uint8_t * auth_path , const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx );
+
+static inline
+void mt_batchopen( uint8_t * auth_path , const mt_t tree , const uint8_t *mesgs , unsigned mesg_len , uint32_t mesg_idx[] , unsigned n_idx ) {
+  unsigned tree_log_n_mesg = __builtin_ctz(tree.num_mesg);
+  unsigned auth_len = MT_AUTHPATH_LEN( mesg_len , tree_log_n_mesg );
+  for(unsigned i=0;i<n_idx;i++){
+    mt_open( auth_path , tree , mesgs+mesg_len*mesg_idx[i] , mesg_len , mesg_idx[i] );
+    auth_path += auth_len;
+  }
+}
+
 
 int mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx );
 
-
+static inline
+int mt_batchverify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx[] , unsigned n_idx ) {
+  unsigned log_n_mesg = __builtin_ctz(num_mesg);
+  unsigned auth_len = MT_AUTHPATH_LEN( mesg_len , log_n_mesg );
+  for(unsigned i=0;i<n_idx;i++){
+    int ri = mt_verify( root , auth_path , mesg_len , num_mesg , mesg_idx[i] );
+    auth_path += auth_len;
+    if (!ri) return 0;
+  }
+  return 1;
+}
 
 
 

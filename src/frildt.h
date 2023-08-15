@@ -23,6 +23,7 @@ extern  "C" {
 #define FRI_POLYLEN      32
 #define FRI_LOGPOLYLEN   5
 #define FRI_GF_BYTES     GF_BYTES
+#define FRI_GF_NUMU64    (GF_BYTES/sizeof(uint64_t))
 
 #define FRI_MT_MESG_LEN  (FRI_GF_BYTES*2)
 #define FRI_MT_N_MESG    (FRI_RS_RHO*FRI_POLYLEN/2)
@@ -89,6 +90,8 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
 ////////////////////////
 
 //def ldt_recover_challenges( _poly_len , h_state , commits , d1poly , Nq , RS_rho = 8 , verbose = 1 ):     return xi , queries
+
+void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t *xi , const uint8_t *h_state , unsigned poly_len , const uint8_t * proof );
 
 //def ldt_verify_proof( commits , d1poly , first_mesgs , open_mesgs , xi , queries , RS_shift=1<<63 , verbose = 1 ): -> Bool
 

@@ -17,21 +17,21 @@ int mt_init( mt_t * tree , unsigned num_mesg )
     uint8_t * buffer = (uint8_t*) malloc( num_mesg*MT_RAND_LEN + (num_mesg*2-1)*HASH_DIGEST_LEN );
     if (NULL==buffer) { return -1; }
 
-    tree->num_mesg = num_mesg;
     tree->randomness = buffer;
-    tree->leaves   = buffer + num_mesg*MT_RAND_LEN;
-    tree->root     = buffer + num_mesg*MT_RAND_LEN + (num_mesg*2-2)*HASH_DIGEST_LEN;
+    tree->leaves     = buffer + num_mesg*MT_RAND_LEN;
+    tree->root       = buffer + num_mesg*MT_RAND_LEN + (num_mesg*2-2)*HASH_DIGEST_LEN;
+    tree->num_mesg   = num_mesg;
 
     return 0;
 }
 
 void mt_free( mt_t * tree )
 {
-    tree->num_mesg = 0;
     free( tree->randomness );
     tree->randomness = NULL;
     tree->leaves   = NULL;
     tree->root     = NULL;
+    tree->num_mesg = 0;
 }
 
 
@@ -92,7 +92,7 @@ def open( msg , idx , r , mktree ):
 
 #include "string.h"
 
-int mt_open( uint8_t * auth_path, const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx )
+void mt_open( uint8_t * auth_path, const mt_t tree , const uint8_t *mesg , unsigned mesg_len , unsigned mesg_idx )
 {
     memmove( auth_path , mesg , mesg_len );
     auth_path += mesg_len;
@@ -108,7 +108,6 @@ int mt_open( uint8_t * auth_path, const mt_t tree , const uint8_t *mesg , unsign
         mesg_idx >>= 1;
         num_mesg >>= 1;
     }
-    return 0;
 }
 
 
