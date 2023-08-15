@@ -74,7 +74,7 @@ size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , uint8_t * prf )
 
 //def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbose = 1 ):  return commits , d1poly , mktrees , h_state
 
-int frildt_commit_phase( uint8_t * proof , mt_t mts[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state );
+int frildt_commit_phase( uint8_t * proof , mt_t mts[] , gfvec_t mesgs[], gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state );
 
 //def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 ):  return open_mesgs , _queries
 

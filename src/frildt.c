@@ -67,7 +67,7 @@ def ldt_commit_phase( vi , poly_len , h_state , RS_rho=8 , RS_shift=1<<63, verbo
 
 #include "utils_hash.h"
 
-int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state )
+int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], gfvec_t v0 ,  unsigned poly_len , uint8_t *h_state )
 {
     int ret = 0;
 
@@ -78,7 +78,6 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsign
     uint8_t i = 0;
     uint64_t offset = FRI_RS_SHIFT;
     gfvec_t vi = v0;
-    gfvec_t mesg;  if( gfvec_alloc(&mesg,v0.len/2) ) { ret = -1; goto commit_exit; }
 
     while( 2 < poly_len ) {
         //xi = gf.from_bytes( H.gen( h_state , bytes([3+i,1]) )[:gf.GF_BSIZE] )
@@ -98,11 +97,11 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsign
         if ( poly_len <= 2 ) break;
 
         //mesg = [ gf.to_bytes(vi[j]) + gf.to_bytes(vi[j+1]) for j in range(0,len(vi),2) ]
-        gfvec_to_consecutive_form( mesg , vi );
+        gfvec_to_consecutive_form( mesgs[i-1] , vi );
         //root , randomness , tree = mt.commit( mesg )
         //mktrees.append( (root,mesg,randomness,tree) )
         //printf( "mktrees[i-1].num_mesg = %d, poly_len*FRI_RS_RHO/2 = %d\n" , mktrees[i-1].num_mesg , poly_len*FRI_RS_RHO/2 );
-        if( mt_commit( mktrees[i-1] , (uint8_t*)mesg.sto , FRI_MT_MESG_LEN , poly_len*FRI_RS_RHO/2 ) ) { ret=-1; goto commit_clean_exit; }
+        if( mt_commit( mktrees[i-1] , (uint8_t*)mesgs[i-1].sto , FRI_MT_MESG_LEN , poly_len*FRI_RS_RHO/2 ) ) { ret=-1; goto commit_exit; }
         // mt_commit( mktrees[i-1] , (uint8_t*)mesg.sto , FRI_MT_MESG_LEN , poly_len*FRI_RS_RHO/2 )
 
         //commits.append( root )
@@ -126,8 +125,6 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t v0 ,  unsign
     //dump( f"update h_state <- H( xi || c0 || c1 ): {h_state}" )
     //return commits , d1poly , mktrees , h_state
 
-commit_clean_exit:
-    gfvec_free(&mesg);
 commit_exit:
     return ret;
 }
@@ -186,14 +183,18 @@ def ldt_query_phase( f_length , mktrees, h_state , Nq , RS_rho=8 , verbose = 1 )
     return open_mesgs , _queries
 #endif
 
-static void frildt_batchopen( uint8_t * proof , mt_t mktrees[] , const uint32_t * queries ) {
+static void frildt_batchopen( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], const uint32_t * queries ) {
     uint32_t qq[FRI_N_QUERY];
     for(int i=0;i<FRI_N_QUERY;i++) qq[i] = queries[i]>>1;
 
+    unsigned lognmesg = FRI_MT_LOGMESG;
     for(int j=0;j<FRI_CORE_N_COMMITS;j++) {
-        // open ....
-
-
+        lognmesg -= 1;
+        unsigned authpath_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , lognmesg );
+        for(int i=0;i<FRI_N_QUERY;i++) {
+            mt_open( proof , mktrees[j] , mesgs[j] , FRI_MT_MESG_LEN , qq[i] );
+            proof += authpath_len;
+        }
     }
 }
 
@@ -227,6 +228,7 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
     gfvec_alloc( &v0 , FRI_POLYLEN*FRI_RS_RHO );
     gfvec_fft( v0, *f0 , FRI_RS_SHIFT);
 
+    // first commit
     mt_t mkt;
     mt_init( &mkt , v0.len/2 );
     gfvec_t gfmesg;
@@ -240,21 +242,28 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
     //printf("proof size: %d\n", size );
     memcpy( ptr_proof.first_commit , mkt.root , FRI_HASH_LEN );  // output first commit
 
+
+    // commits the same with aurora
     uint8_t h_state[FRI_HASH_LEN];  memcpy( h_state , ih_state , FRI_HASH_LEN );
     mt_t mkts[FRI_CORE_N_COMMITS];
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_init( &mkts[i] , FRI_MT_N_MESG>>(1+i) ); }
-    if( 0 != frildt_commit_phase( ptr_proof.commits[0] , mkts , v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_init( &mkts[i] , FRI_MT_N_MESG>>(1+i) ); }  // XXX: check malloc errors
+    gfvec_t mesgs[FRI_CORE_N_COMMITS];
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_alloc( &mesgs[i] , FRI_MT_N_MESG>>(i) ); }  // XXX: check malloc errors
+
+
+    if( 0 != frildt_commit_phase( ptr_proof.commits[0] , mkts, mesgs, v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
     // frildt_commit_phase( ptr_proof.commits[0] , mkts , v0 , FRI_POLYLEN , h_state );
 
 
 
 
 
+    // first opened mesgs
     mt_open( ptr_proof.first_mesgs , mkt , ((uint8_t*)gfmesg.sto) + FRI_MT_MESG_LEN*3 , FRI_MT_MESG_LEN , 3 );  // open first commit
 
 
     for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_free( &mkts[i] ); }
-
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_free( &mesgs[i] ); }
     gfvec_free( &gfmesg );
     mt_free( &mkt );
     gfvec_free( &v0 );
