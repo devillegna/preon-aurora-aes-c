@@ -105,7 +105,7 @@ void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t
 
 int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * queries );
 
-int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi );
+int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi , const uint32_t * queries);
 
 //def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ): -> Bool
 

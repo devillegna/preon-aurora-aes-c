@@ -294,12 +294,19 @@ def _check_deg1poly_linear_relation( mesgjm1 , d1poly , idx , xi , offset ) :
 #endif
 
 
-int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi )
+int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi , const uint32_t * queries )
 {
+    for(int k=0;k<FRI_N_QUERY;k++) {
 
+        for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
 
+            // if something wrong return 0;
+        }
+        // check d1poly
 
-    return 0;
+    }
+
+    return 1;
 }
 
 
@@ -344,5 +351,5 @@ int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_
         memcpy( &first_mesgs[i*FRI_MT_MESG_LEN / sizeof(uint64_t)] , ptr_proof.first_commit + i*auth_len , FRI_MT_MESG_LEN );
     }
 
-    return frildt_verify_linear_relation( (uint8_t*)first_mesgs , ptr_proof.commits[0] , ptr_proof.d1poly , xi );
+    return frildt_verify_linear_relation( (uint8_t*)first_mesgs , ptr_proof.commits[0] , ptr_proof.d1poly , xi , queries );
 }
