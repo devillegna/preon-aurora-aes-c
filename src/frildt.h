@@ -91,9 +91,13 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_stat
 
 //def ldt_recover_challenges( _poly_len , h_state , commits , d1poly , Nq , RS_rho = 8 , verbose = 1 ):     return xi , queries
 
-void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t *xi , const uint8_t *h_state , unsigned poly_len , const uint8_t * proof );
+void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t *xi , const uint8_t *h_state , const uint8_t * proof );
 
 //def ldt_verify_proof( commits , d1poly , first_mesgs , open_mesgs , xi , queries , RS_shift=1<<63 , verbose = 1 ): -> Bool
+
+int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * queries );
+
+//int frildt_verify_linear_relation(  )
 
 //def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ): -> Bool
 
