@@ -294,19 +294,66 @@ def _check_deg1poly_linear_relation( mesgjm1 , d1poly , idx , xi , offset ) :
 #endif
 
 
-int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi , const uint32_t * queries )
+static inline
+int is_gf_eq( const uint64_t * c0 , const uint64_t * c1 )
 {
-    for(int k=0;k<FRI_N_QUERY;k++) {
+    uint64_t r = 0;
+    for(int i=0;i<FRI_GF_NUMU64;i++) r |= c0[i]^c1[i];
+    return (0==r);
+}
 
+static
+int _check_linear_relation( const gfvec_t mesg1 , gfvec_t mesg0 , unsigned idx , const uint64_t *xi, uint64_t offset ) {
+    gfvec_ibtfy_1stage(mesg0,offset^(idx<<1));
+    gfvec_frildt_reduce(&mesg0,xi);    // mesg0 is a temporary instance in this function. this operation won't chane the mesg0.len in the caller function.
+
+    uint64_t cc0[FRI_GF_NUMU64];     gfvec_to_u64vec( cc0 , mesg0 );
+    uint64_t cc1[FRI_GF_NUMU64*2];   gfvec_to_u64vec( cc1 , mesg1 );
+
+    return is_gf_eq( cc0 , cc1+(idx&1)*FRI_GF_NUMU64 );
+}
+
+int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*_d1poly , const uint64_t *xi , const uint32_t * queries )
+{
+    uint64_t buff[2*FRI_GF_NUMU64];
+    //uint8_t *buff_u8 = (uint8_t*)buff;
+
+    gfvec_t d1poly;  gfvec_alloc(&d1poly,2); memcpy(buff,_d1poly,2*FRI_GF_BYTES); gfvec_from_u64vec(d1poly,buff);
+    gfvec_t _mesg0;  gfvec_alloc(&_mesg0,2);
+    gfvec_t _mesg1;  gfvec_alloc(&_mesg1,2);
+    gfvec_t * mesg0 = &_mesg0;
+    gfvec_t * mesg1 = &_mesg1;
+
+    int succ = 1;
+    for(int k=0;k<FRI_N_QUERY;k++) {
+        uint32_t idx = queries[k];
+        uint64_t offset = FRI_RS_SHIFT;
+        memcpy(buff,first_mesgs,2*FRI_GF_BYTES);  first_mesgs += 2*FRI_GF_BYTES; gfvec_from_u64vec(*mesg0,buff);
         for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
+            memcpy(buff,open_mesgs,2*FRI_GF_BYTES); open_mesgs += MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-(i+1));
+            gfvec_from_u64vec(*mesg1,buff);
 
             // if something wrong return 0;
+            if( !_check_linear_relation(*mesg1,*mesg0,idx,xi+i*FRI_GF_NUMU64,offset) ) { succ=0; goto verify_linear_exit; }
+
+            idx >>= 1;
+            offset >>= 1;
+
+            gfvec_t * tt = mesg1;  // next mesg0
+            mesg1 = mesg0;
+            mesg0 = tt;
         }
         // check d1poly
-
+        gfvec_fft(*mesg1,d1poly,(offset>>1)^(idx^(idx&1)));
+        if( !_check_linear_relation(*mesg1,*mesg0,idx,xi+FRI_CORE_N_COMMITS*FRI_GF_NUMU64,offset) ) { succ=0; goto verify_linear_exit; }
     }
 
-    return 1;
+verify_linear_exit:
+    gfvec_free(&_mesg0);
+    gfvec_free(&_mesg1);
+    gfvec_free(&d1poly);
+
+    return succ;
 }
 
 
