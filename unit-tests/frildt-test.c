@@ -54,7 +54,7 @@ int test_0(void)
     uint8_t * proof = (uint8_t*)malloc(FRI_PROOF_LEN);
     frildt_gen_proof( proof , &vec , h_state );
 
-    int succ = frildt_verify( proof , POLYLEN , h_state );
+    int succ = frildt_verify( proof , h_state );
 
     free( proof );
 	gfvec_free( &vec );
