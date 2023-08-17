@@ -17,10 +17,10 @@ extern  "C" {
 #define FRI_HASH_LEN   HASH_DIGEST_LEN
 
 //#define FRI_N_QUERY    26
-#define FRI_N_QUERY    1
+#define FRI_N_QUERY    2
 
 
-#define FRI_POLYLEN      32
+#define FRI_POLYLEN      (1<<5)
 #define FRI_LOGPOLYLEN   5
 #define FRI_GF_BYTES     GF_BYTES
 #define FRI_GF_NUMU64    (GF_BYTES/sizeof(uint64_t))
