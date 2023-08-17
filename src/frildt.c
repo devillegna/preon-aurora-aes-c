@@ -347,16 +347,20 @@ int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * 
     gfvec_t * mesg0 = &_mesg0;
     gfvec_t * mesg1 = &_mesg1;
 
+    const uint8_t * mesgs[FRI_CORE_N_COMMITS];
+    frildt_setptr_openmesgs( mesgs , open_mesgs );
+
     int succ = 1;
     for(int k=0;k<FRI_N_QUERY;k++) {
+//printf("linear relation: %d\n", k );
         uint32_t idx = queries[k];
         uint64_t offset = FRI_RS_SHIFT;
-        memcpy(buff,first_mesgs,2*FRI_GF_BYTES);  first_mesgs += 2*FRI_GF_BYTES; gfvec_from_u64vec(*mesg0,buff);
+        memcpy(buff,first_mesgs,FRI_MT_MESG_LEN);  first_mesgs += FRI_MT_MESG_LEN; gfvec_from_u64vec(*mesg0,buff);
         for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
 //if(0==k){
 //printf("%d/%d query: %x, offset: %llx, xi: %llx\n", i,FRI_CORE_N_COMMITS , idx , offset , *(xi+i*FRI_GF_NUMU64) );
 //}
-            memcpy(buff,open_mesgs,2*FRI_GF_BYTES); open_mesgs += MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-(i+1));
+            memcpy(buff,mesgs[i]+k*MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-(i+1)),FRI_MT_MESG_LEN);
             gfvec_from_u64vec(*mesg1,buff);
 
             // if something wrong return 0;
@@ -373,6 +377,7 @@ int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * 
         // check d1poly
         gfvec_fft(*mesg1,d1poly,(offset>>1)^(idx^(idx&1)));
         if( !_check_linear_relation(*mesg1,*mesg0,idx,xi+FRI_CORE_N_COMMITS*FRI_GF_NUMU64,offset) ) { succ=0; goto verify_linear_exit; }
+//printf("passed.\n");
     }
 
 verify_linear_exit:
@@ -414,9 +419,11 @@ int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_
     // check first opened message
     int r;
     r = mt_batchverify( ptr_proof.first_commit , ptr_proof.first_mesgs , FRI_MT_MESG_LEN , FRI_MT_N_MESG , queries , FRI_N_QUERY );
+    printf("commit open [0]: %d\n", r );
     if( !r ) return 0;
 
     r = frildt_verify_commit_open( ptr_proof.commits[0] , ptr_proof.open_mesgs[0] , queries );
+    printf("commit open [1,....]: %d\n", r );
     if( !r ) return 0;
 
     uint64_t first_mesgs[ FRI_N_QUERY * FRI_MT_MESG_LEN / sizeof(uint64_t) ];
