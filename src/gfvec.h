@@ -53,6 +53,13 @@ void gfvec_fft( gfvec_t dest, const gfvec_t src , uint64_t shift );
 void gfvec_ibtfy_1stage( gfvec_t vec, uint64_t shift );
 
 
+#include "stdio.h"
+static inline
+void gfvec_dump( const unsigned char * s, gfvec_t vec , unsigned idx ) {
+    printf("%s : [%d/%d] %llx\n", s , idx , vec.len , vec.vec[0][idx] );
+}
+
+
 
 #ifdef  __cplusplus
 }

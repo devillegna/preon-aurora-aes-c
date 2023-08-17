@@ -23,13 +23,21 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], gfv
         bytes[0] = 3+i;
         hash_2mesg( u8ptr_xi , h_state , FRI_HASH_LEN , bytes , 2 );
 
-        printf("iter: %d/%d, xi: %llx\n", i , FRI_CORE_N_COMMITS , xi[0] );
+printf("iter: %d/%d, xi: %llx\n", i , FRI_CORE_N_COMMITS , xi[0] );
 
         //printf("iter: %d, polylen = %d, vi.len = %d\n", i , poly_len , vi.len );
         //vi = gf.ibtfy_1( vi , offset )
+//printf( "i=%d, offset=%llx\n", i , offset );
+//gfvec_dump( "" , vi , 0 );
+//gfvec_dump( "" , vi , 1 );
+
         gfvec_ibtfy_1stage( vi , offset );
         //vi_e = vi[::2] //vi_o = vi[1::2] //vi = [ vi_e[j]^gf.mul(vi_o[j],xi) for j in range(len(vi_e)) ]
         gfvec_frildt_reduce( &vi , xi );
+
+//gfvec_dump( "ldt reduce [0]" , vi , 0 );
+//gfvec_dump( "ldt reduce [1]" , vi , 1 );
+
 
         offset   >>= 1;
         poly_len >>= 1;
@@ -39,7 +47,7 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], gfv
         if( poly_len*FRI_RS_RHO != vi.len ) { abort(); } //assert( vi.len == poly_len*FRI_RS_RHO );
         if ( poly_len <= 2 ) break;
 
-        printf("commit: [%d]\n", i );
+printf("commit: [%d]\n", i );
 
         //mesg = [ gf.to_bytes(vi[j]) + gf.to_bytes(vi[j+1]) for j in range(0,len(vi),2) ]
         gfvec_to_u64vec( mesgs[i].sto , vi );
@@ -110,6 +118,7 @@ FRI_CORE_N_COMMITS error: QUERY overflow.
         hash_2mesg( (uint8_t*)h32_state , h_state , FRI_HASH_LEN , bytes , 2 );
         queries[j-1] = h32_state[0]&idx_mask;           // XXX: endianness
     }
+//queries[0] = 0;  // XXX: DEBUG
 }
 
 
@@ -117,12 +126,13 @@ FRI_CORE_N_COMMITS error: QUERY overflow.
 void frildt_query_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], const uint32_t * queries ) {
     uint32_t qq[FRI_N_QUERY];
     for(int i=0;i<FRI_N_QUERY;i++) { qq[i] = queries[i]>>1; }   // skip first commit/opened mesgs
-
+//printf("query phase:\n");
     unsigned lognmesg = FRI_MT_LOGMESG;
     for(int j=0;j<FRI_CORE_N_COMMITS;j++) {
         lognmesg -= 1;
         unsigned authpath_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , lognmesg );
         mt_batchopen(proof , mktrees[j] , (uint8_t*)mesgs[j].sto , FRI_MT_MESG_LEN , qq, FRI_N_QUERY );
+//printf( "open [%d]: idx:%d [0]:%llx [1]:%llx\n" , j , qq[0] , ((uint64_t*)proof)[0] , ((uint64_t*)proof)[3] );
         proof += authpath_len*FRI_N_QUERY;
         for(int i=0;i<FRI_N_QUERY;i++) {  qq[i] >>= 1; }
     }
@@ -145,12 +155,14 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
     gfvec_to_u64vec( gfmesg.sto , v0 );
     mt_commit( mkt , (uint8_t*)gfmesg.sto , FRI_MT_MESG_LEN , FRI_MT_N_MESG );
 
+//printf("first mesg: [0] %llx, %llx\n", gfmesg.sto[0] , gfmesg.sto[3] );
+//gfvec_dump( "v0[0]" , v0 , 0 );
+//gfvec_dump( "v0[1]" , v0 , 1 );
 
     frildt_proof_t ptr_proof;
     frildt_proof_setptr( &ptr_proof , proof );
     //printf("proof size: %d\n", size );
     memcpy( ptr_proof.first_commit , mkt.root , FRI_HASH_LEN );  // output first commit
-
 
     // commits the same with aurora
     uint8_t h_state[FRI_HASH_LEN];  memcpy( h_state , ih_state , FRI_HASH_LEN );
@@ -165,11 +177,14 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
 
     uint32_t queries[FRI_N_QUERY];
     frildt_get_queries( queries , h_state );
-    printf("query_idx: %d\n", queries[0]);
+//printf("query_idx: %d\n", queries[0]);
 
     frildt_query_phase( ptr_proof.open_mesgs[0] , mkts , mesgs , queries );
     // first opened mesgs
     mt_batchopen( ptr_proof.first_mesgs , mkt , (uint8_t*)gfmesg.sto , FRI_MT_MESG_LEN , queries , FRI_N_QUERY );  // open first commit
+
+//printf("first mesg: %llx , %llx\n", ((uint64_t*)ptr_proof.first_mesgs)[0] , ((uint64_t*)ptr_proof.first_mesgs)[3] );
+
 
     for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_free( &mkts[i] ); }
     for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_free( &mesgs[i] ); }
@@ -304,13 +319,21 @@ int is_gf_eq( const uint64_t * c0 , const uint64_t * c1 )
 
 static
 int _check_linear_relation( const gfvec_t mesg1 , gfvec_t mesg0 , unsigned idx , const uint64_t *xi, uint64_t offset ) {
+//printf( "idx=%d, offset=%llx, vi[0]=%llx, vi[1]=%llx, len=%d\n", idx , offset , mesg0.vec[0][0] , mesg0.vec[0][1] , mesg0.len );
+
     gfvec_ibtfy_1stage(mesg0,offset^(idx<<1));
     gfvec_frildt_reduce(&mesg0,xi);    // mesg0 is a temporary instance in this function. this operation won't chane the mesg0.len in the caller function.
+
+//printf( "frildt reduce-> vi[0]=%llx, vi[1]=%llx, len=%d\n" , mesg0.vec[0][0] , mesg0.vec[0][1] , mesg0.len );
+//printf( "compare      -> vi[0]=%llx, vi[1]=%llx\n" , mesg1.vec[0][0] , mesg1.vec[0][1] );
 
     uint64_t cc0[FRI_GF_NUMU64];     gfvec_to_u64vec( cc0 , mesg0 );
     uint64_t cc1[FRI_GF_NUMU64*2];   gfvec_to_u64vec( cc1 , mesg1 );
 
-    return is_gf_eq( cc0 , cc1+(idx&1)*FRI_GF_NUMU64 );
+    int r = is_gf_eq( cc0 , cc1+(idx&1)*FRI_GF_NUMU64 );
+//printf("check linear relation: idx=%x, xi=%llx, offset=%llx, succ=%d\n", idx , xi[0], offset , r );
+
+    return r;
 }
 
 int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*_d1poly , const uint64_t *xi , const uint32_t * queries )
@@ -330,11 +353,15 @@ int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * 
         uint64_t offset = FRI_RS_SHIFT;
         memcpy(buff,first_mesgs,2*FRI_GF_BYTES);  first_mesgs += 2*FRI_GF_BYTES; gfvec_from_u64vec(*mesg0,buff);
         for (int i=0;i<FRI_CORE_N_COMMITS;i++) {
+//if(0==k){
+//printf("%d/%d query: %x, offset: %llx, xi: %llx\n", i,FRI_CORE_N_COMMITS , idx , offset , *(xi+i*FRI_GF_NUMU64) );
+//}
             memcpy(buff,open_mesgs,2*FRI_GF_BYTES); open_mesgs += MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-(i+1));
             gfvec_from_u64vec(*mesg1,buff);
 
             // if something wrong return 0;
             if( !_check_linear_relation(*mesg1,*mesg0,idx,xi+i*FRI_GF_NUMU64,offset) ) { succ=0; goto verify_linear_exit; }
+//_check_linear_relation(*mesg1,*mesg0,idx,xi+i*FRI_GF_NUMU64,offset);
 
             idx >>= 1;
             offset >>= 1;
@@ -395,8 +422,10 @@ int frildt_verify( const uint8_t * proof , unsigned poly_len , const uint8_t *h_
     uint64_t first_mesgs[ FRI_N_QUERY * FRI_MT_MESG_LEN / sizeof(uint64_t) ];
     unsigned auth_len = MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG );
     for(int i=0;i< FRI_N_QUERY; i++ ) {
-        memcpy( &first_mesgs[i*FRI_MT_MESG_LEN / sizeof(uint64_t)] , ptr_proof.first_commit + i*auth_len , FRI_MT_MESG_LEN );
+        memcpy( &(first_mesgs[i*FRI_MT_MESG_LEN / sizeof(uint64_t)]) , ptr_proof.first_mesgs + i*auth_len , FRI_MT_MESG_LEN );
     }
 
-    return frildt_verify_linear_relation( (uint8_t*)first_mesgs , ptr_proof.commits[0] , ptr_proof.d1poly , xi , queries );
+//printf("first message: [0] %llx, [1] %llx\n", first_mesgs[0] , first_mesgs[3] );
+
+    return frildt_verify_linear_relation( (uint8_t*)first_mesgs , ptr_proof.open_mesgs[0] , ptr_proof.d1poly , xi , queries );
 }
