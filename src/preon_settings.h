@@ -38,6 +38,7 @@ error : no implemented
 
 
 #define GF_BYTES    (GF_BITS/8)
+#define GF_NUMU64   ((GF_BYTES+7)>>3)
 
 
 

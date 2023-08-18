@@ -80,7 +80,7 @@ endif
 .PHONY: all clean
 
 
-all: $(SLIBPATH)/lib$(SLIBNAME).a frildt-test
+all: $(SLIBPATH)/lib$(SLIBNAME).a frildt-test preon-test
 
 
 $(SLIBPATH)/lib$(SLIBNAME).a:

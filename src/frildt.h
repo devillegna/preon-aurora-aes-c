@@ -23,10 +23,10 @@ error.
 #define FRI_N_QUERY    26
 
 
-#define FRI_POLYLEN      (1<<14)
-#define FRI_LOGPOLYLEN   14
+#define FRI_POLYLEN      (1<<13)
+#define FRI_LOGPOLYLEN   13
 #define FRI_GF_BYTES     GF_BYTES
-#define FRI_GF_NUMU64    ((GF_BYTES+7)>>3)
+#define FRI_GF_NUMU64    GF_NUMU64
 
 #define FRI_MT_MESG_LEN  (FRI_GF_BYTES*2)
 #define FRI_MT_N_MESG    (FRI_RS_RHO*FRI_POLYLEN/2)
@@ -41,7 +41,6 @@ error.
 #define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_CORE_LEN + FRI_N_QUERY*MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
 
 typedef struct _frildt_proof_ {
-    unsigned n_commits;
     const uint8_t * first_commit;
     const uint8_t * commits[FRI_CORE_N_COMMITS];
     const uint8_t * d1poly;
@@ -65,7 +64,6 @@ void frildt_setptr_openmesgs( const uint8_t *open_mesgs[FRI_CORE_N_COMMITS] , co
 static inline
 size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , const uint8_t * prf )
 {
-    prf_ptr->n_commits = FRI_CORE_N_COMMITS;
     const uint8_t * backup = prf;
     prf_ptr->first_commit = prf;       prf += FRI_HASH_LEN;
     for(int i=0;i<FRI_CORE_N_COMMITS;i++) {
