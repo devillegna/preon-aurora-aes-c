@@ -14,7 +14,11 @@ extern  "C" {
 #define FRI_RS_LOGRHO  RS_LOGRHO
 #define FRI_RS_SHIFT   RS_SHIFT
 
+#if PREON_HASH_LEN==HASH_DIGEST_LEN
 #define FRI_HASH_LEN   HASH_DIGEST_LEN
+#else
+error.
+#endif
 
 #define FRI_N_QUERY    26
 

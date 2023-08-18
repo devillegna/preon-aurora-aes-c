@@ -9,12 +9,18 @@
 
 #define GF_BITS     192
 
-#if defined(_VARIANT_A_)||defined(_VARIANT_B_)
-
 #define PREON_AESKEYLEN  16
-#define PREON_PKLEN  32
-#define PREON_SKLEN  (16+PREON_AESKEYLEN)
+#define PREON_PKLEN     32
+#define PREON_SKLEN     (16+PREON_AESKEYLEN)
+#define PREON_SIGLEN    16
 
+
+#define PREON_HASH_LEN  32
+
+#if defined(_VARIANT_A_)
+#define PREON_N_QUERY 26
+#elif defined(_VARIANT_B_)
+#define PREON_N_QUERY  ??
 #else
 error : no supported
 #endif  // variants

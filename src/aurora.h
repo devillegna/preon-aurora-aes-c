@@ -1,5 +1,5 @@
 #ifndef _AURORA_H_
-#define _ARRORA_H_
+#define _AURORA_H_
 
 #ifdef  __cplusplus
 extern  "C" {

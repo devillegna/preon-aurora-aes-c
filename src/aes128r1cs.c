@@ -136,6 +136,14 @@ inline void _copy_bytes( uint8_t *dest , const uint8_t *src , int len ) { for(in
 
 ///////////////////////
 
+void r1cs_get_vec_1v( uint8_t * vec_z , const uint8_t * pt , const uint8_t * ct )
+{
+    vec_z[0] = 1;
+    for(int i=0;i<16;i++) vec_z[1+i] = ct[i];
+    for(int i=0;i<16;i++) vec_z[17+i] = pt[i];
+    for(int i=33;i<R1CS_WITNESS_IDX;i++) vec_z[i] = 0;
+}
+
 void r1cs_get_vec_z( uint8_t * vec_z , const uint8_t * pt , const uint8_t * key )
 {
     vec_z[0] = 1;

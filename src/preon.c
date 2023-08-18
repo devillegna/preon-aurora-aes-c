@@ -38,16 +38,39 @@ error here
 }
 
 
+#if 16==PREON_AESKEYLEN
+#include "aes128r1cs.h"
+#else
+XXX: no support now.
+#endif
+
+#include "utils_hash.h"
+#if PREON_HASH_LEN != HASH_DIGEST_LEN
+error->HASH_LEN
+#endif
+
+#include "aurora.h"
+
 int preon_sign( uint8_t * sig , const uint8_t * sk , const uint8_t * mesg , unsigned len_mesg )
 {
+    uint8_t r1cs_z[R1CS_Z_LEN];
+    r1cs_get_vec_z(r1cs_z , sk , sk+16 );
 
-    return 0;
+    uint8_t h_state[PREON_HASH_LEN];
+    hash_1mesg(h_state,mesg,len_mesg);
+
+    return aurora_generate_proof(sig,r1cs_z,h_state);
 }
 
 int preon_verify( const uint8_t * sig , const uint8_t * pk , const uint8_t * mesg , unsigned len_mesg )
 {
+    uint8_t r1cs_z[R1CS_Z_LEN];
+    r1cs_get_vec_1v(r1cs_z , pk , pk+16 );
 
-    return 0;
+    uint8_t h_state[PREON_HASH_LEN];
+    hash_1mesg(h_state,mesg,len_mesg);
+
+    return aurora_verify_proof(sig,r1cs_z,h_state);
 }
 
 

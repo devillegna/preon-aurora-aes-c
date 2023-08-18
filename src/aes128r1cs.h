@@ -21,6 +21,8 @@ extern  "C" {
 
 
 void r1cs_get_vec_z( uint8_t * vec_z , const uint8_t * pt , const uint8_t * key );
+void r1cs_get_vec_1v( uint8_t * vec_z , const uint8_t * pt , const uint8_t * ct );
+
 
 void r1cs_matA_x_vec_z( uint64_t * Az , const uint8_t * vec_z  );
 void r1cs_matB_x_vec_z( uint64_t * Bz , const uint8_t * vec_z  );
