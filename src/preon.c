@@ -62,7 +62,7 @@ int preon_sign( uint8_t * sig , const uint8_t * sk , const uint8_t * mesg , unsi
     return aurora_generate_proof(sig,r1cs_z,h_state);
 }
 
-int preon_verify( const uint8_t * sig , const uint8_t * pk , const uint8_t * mesg , unsigned len_mesg )
+bool preon_verify( const uint8_t * sig , const uint8_t * pk , const uint8_t * mesg , unsigned len_mesg )
 {
     uint8_t r1cs_z[R1CS_Z_LEN];
     r1cs_get_vec_1v(r1cs_z , pk , pk+16 );

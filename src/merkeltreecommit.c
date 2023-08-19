@@ -123,7 +123,7 @@ def verify( rt , idx , auth_path ):
 
 */
 
-int mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned idx )
+bool mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned idx )
 {
     uint8_t state[HASH_DIGEST_LEN];
     hash_1mesg( state , auth_path , mesg_len + MT_RAND_LEN );

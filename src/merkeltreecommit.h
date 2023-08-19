@@ -49,18 +49,20 @@ void mt_batchopen( uint8_t * auth_path , const mt_t tree , const uint8_t *mesgs 
 }
 
 
-int mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx );
+#include "stdbool.h"
+
+bool mt_verify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx );
 
 static inline
-int mt_batchverify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx[] , unsigned n_idx ) {
+bool mt_batchverify( const uint8_t * root , const uint8_t * auth_path , unsigned mesg_len , unsigned num_mesg , unsigned mesg_idx[] , unsigned n_idx ) {
   unsigned log_n_mesg = __builtin_ctz(num_mesg);
   unsigned auth_len = MT_AUTHPATH_LEN( mesg_len , log_n_mesg );
   for(unsigned i=0;i<n_idx;i++){
     int ri = mt_verify( root , auth_path , mesg_len , num_mesg , mesg_idx[i] );
     auth_path += auth_len;
-    if (!ri) return 0;
+    if (!ri) return false;
   }
-  return 1;
+  return true;
 }
 
 

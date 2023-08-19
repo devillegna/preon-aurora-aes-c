@@ -11,8 +11,7 @@
 
 #define PREON_AESKEYLEN  16
 #define PREON_PKLEN     32
-#define PREON_SKLEN     (16+PREON_AESKEYLEN)
-#define PREON_SIGLEN    16
+#define PREON_SKLEN     32
 
 
 #define PREON_HASH_LEN  32

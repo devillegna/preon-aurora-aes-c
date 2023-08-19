@@ -37,6 +37,7 @@ error.
 #define FRI_CORE_N_COMMITS  (FRI_LOGPOLYLEN-2)
 #define FRI_CORE_OPEN_LEN   (FRI_N_QUERY*(FRI_CORE_N_COMMITS)*(MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-FRI_CORE_N_COMMITS)+MT_AUTHPATH_LEN(FRI_MT_MESG_LEN,FRI_MT_LOGMESG-1))/2)
 #define FRI_CORE_LEN        (FRI_CORE_N_COMMITS*FRI_HASH_LEN + FRI_GF_BYTES*2 + FRI_CORE_OPEN_LEN )
+#define FRI_CORE_N_XI      (FRI_CORE_N_COMMITS+1)
 
 #define FRI_PROOF_LEN    (FRI_HASH_LEN + FRI_CORE_LEN + FRI_N_QUERY*MT_AUTHPATH_LEN( FRI_MT_MESG_LEN , FRI_MT_LOGMESG ))
 
@@ -101,13 +102,15 @@ void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t
 
 //def ldt_verify_proof( commits , d1poly , first_mesgs , open_mesgs , xi , queries , RS_shift=1<<63 , verbose = 1 ): -> Bool
 
-int frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * queries );
+#include "stdbool.h"
 
-int frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi , const uint32_t * queries);
+bool frildt_verify_commit_open( const uint8_t * commits , const uint8_t * open_mesgs , const uint32_t * queries );
+
+bool frildt_verify_linear_relation( const uint8_t* first_mesgs , const uint8_t * open_mesgs , const uint8_t*d1poly , const uint64_t *xi , const uint32_t * queries);
 
 //def ldt_verify( proof , _poly_len , h_state , Nq = 26 , RS_rho = 8 , verbose = 1 ): -> Bool
 
-int frildt_verify( const uint8_t * proof ,  const uint8_t *h_state );
+bool frildt_verify( const uint8_t * proof ,  const uint8_t *h_state );
 
 
 
