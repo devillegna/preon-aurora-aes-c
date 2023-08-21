@@ -56,6 +56,33 @@ int test_0(void)
 
 
 
+
+int test_1(void)
+{
+    printf("test gfvec_t internal variables.\n");
+
+    gfvec_t vec0;
+    gfvec_alloc( &vec0 , 32 );
+    randombytes( (uint8_t*)vec0.sto , 32*8*GF_EXT_DEG );
+
+	gfvec_t vec1 = vec0;
+	gfvec_dump( "gfvec1:" , vec1 , 0 );
+	gfvec_dump( "gfvec1:" , vec1 , 1 );
+	printf("vec1.len: %d\n", vec1.len );
+	printf("vec1._stosize_u64: %p\n", vec1._stosize_u64 );
+
+	gfvec_t vec2 = gfvec_slice( vec0 , 1 , 2 );
+
+	gfvec_dump( "gfvec2:" , vec2 , 0 );
+
+
+    gfvec_free( &vec0 );
+    return 0;
+}
+
+
+
+
 int main(void)
 {
 	printf("test gf2192 and gfvec_t.\n\n");
@@ -63,6 +90,7 @@ int main(void)
 	int fail = 0;
 
     if(0 != test_0()) fail = 1;
+    if(0 != test_1()) fail = 1;
 
 
 	printf((fail)?"test FAIL\n":"test PASS\n");
