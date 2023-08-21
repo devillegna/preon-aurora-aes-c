@@ -10,9 +10,10 @@
 
 int gfvec_alloc( gfvec_t *v, unsigned len )
 {
-    uint64_t * buffer = (uint64_t*) malloc( len*sizeof(uint64_t)*GF_EXT_DEG );
+    uint64_t * buffer = (uint64_t*) malloc( len*GF_EXT_DEG*sizeof(uint64_t) );
     if( NULL==buffer ) return -1;
 
+    v->_stosize_u64 = len*GF_EXT_DEG;
     v->len = len;
     v->sto = buffer;
     for(int i=0;i<GF_EXT_DEG;i++) {
@@ -24,7 +25,8 @@ int gfvec_alloc( gfvec_t *v, unsigned len )
 
 void gfvec_free( gfvec_t *v)
 {
-    free( v->sto );
+    if(v->_stosize_u64) free( v->sto );
+    v->_stosize_u64 = 0;
     v->sto = NULL;
     v->len = 0;
     for(int i=0;i<GF_EXT_DEG;i++) v->vec[i]=NULL;
@@ -89,6 +91,22 @@ void gfvec_fft( gfvec_t dest, const gfvec_t src , uint64_t shift )
         }
     }
 }
+
+void gfvec_ifft( gfvec_t dest, const gfvec_t src , uint64_t shift )
+{
+    if(0!=(src.len&(src.len-1))) { printf("src fft size != 2^??\n"); abort(); }
+    if(0!=(dest.len&(dest.len-1))) { printf("dest fft size != 2^??\n"); abort(); }
+    if(0==src.len) { printf("src fft([0])\n"); abort(); }
+
+    unsigned log_plen = (unsigned) _log2(src.len);
+    for(int k=0;k<GF_EXT_DEG;k++) {
+        for(unsigned i=0;i<dest.len;i+=src.len){
+            memmove(&dest.vec[k][i],src.vec[k],src.len*sizeof(uint64_t));
+            ibtfy_64( &dest.vec[k][i] , log_plen , shift+i );
+        }
+    }
+}
+
 
 void gfvec_ibtfy_1stage( gfvec_t vec, uint64_t shift )
 {
