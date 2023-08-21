@@ -62,7 +62,7 @@ def process_R1CS( R1CS , verbose = 1 ):
 #include "randombytes.h"
 
 static
-void process_R1CS( gfvec_t *f_w , gfvec_t *v_z_pad , gfvec_t *f_Az , gfvec_t *f_Bz , gfvec_t *f_Cz , gfvec_t *v_Az , gfvec_t *v_Bz , gfvec_t *v_Cz , const uint8_t * r1cs_z )
+void process_R1CS_z( gfvec_t *f_w , gfvec_t *v_z_pad , const uint8_t * r1cs_z )
 {
     //pad_len = _pad_len( max(n,m) )
     //inst_dim = _log2(witness_idx)
@@ -87,21 +87,53 @@ void process_R1CS( gfvec_t *f_w , gfvec_t *v_z_pad , gfvec_t *f_Az , gfvec_t *f_
     gfvec_borrow_slice( f_w , &f_z , R1CS_WITNESS_IDX , pad_len );
     uint8_t zero[R1CS_WITNESS_IDX] = {0};
     gfvec_from_u8gfvec( gfvec_slice(*f_w,pad_len-R1CS_WITNESS_IDX,R1CS_WITNESS_IDX) , zero );
+}
+
+static
+void process_R1CS(gfvec_t *f_Az , gfvec_t *f_Bz , gfvec_t *f_Cz , gfvec_t *v_Az , gfvec_t *v_Bz , gfvec_t *v_Cz , const uint8_t * r1cs_z )
+{
+    unsigned pad_len = R1CS_PADLEN;
+
+    gfvec_alloc( v_Az , pad_len*2 );
+    gfvec_alloc( v_Bz , pad_len*2 );
+    gfvec_alloc( v_Cz , pad_len*2 );
+
+    gfvec_alloc( f_Az , pad_len );
+    gfvec_alloc( f_Bz , pad_len );
+    gfvec_alloc( f_Cz , pad_len );
 
     //Az = mat_x_vec( mat_A , vec_z )
+    r1cs_matA_x_vec_z( v_Az->sto , r1cs_z  );
+    gfvec_lift_from_u64gfvec( gfvec_slice(*v_Az,0,R1CS_NROW) );
     //Bz = mat_x_vec( mat_B , vec_z )
-    //Cz = mat_x_vec( mat_C , vec_z )
-
+    r1cs_matB_x_vec_z( v_Bz->sto , r1cs_z  );
+    gfvec_lift_from_u64gfvec( gfvec_slice(*v_Bz,0,R1CS_NROW) );
     //v_Az    = Az + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Az)) ]
+    randombytes((uint8_t*)(v_Cz->sto), (R1CS_PADLEN-R1CS_NROW)*GF_BYTES );
+    gfvec_from_u64vec( gfvec_slice(*v_Az,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) , v_Cz->sto );
     //v_Bz    = Bz + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Bz)) ]
+    randombytes((uint8_t*)(v_Cz->sto), (R1CS_PADLEN-R1CS_NROW)*GF_BYTES );
+    gfvec_from_u64vec( gfvec_slice(*v_Bz,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) , v_Cz->sto );
+
+    //Cz = mat_x_vec( mat_C , vec_z )
+    r1cs_matC_x_vec_z( v_Cz->sto , r1cs_z  );
+    gfvec_lift_from_u64gfvec( gfvec_slice(*v_Cz,0,R1CS_NROW) );
     //v_Cz    = Cz + [ gf.mul(v_Az[i],v_Bz[i]) for i in range(m,pad_len) ]           # !!! XXX: need to discuss here
+    gfvec_mul( gfvec_slice(*v_Cz,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) , gfvec_slice(*v_Az,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) , gfvec_slice(*v_Bz,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) );
+
     //f_Az = gf.ifft( v_Az , 1 , 0 )
     //f_Bz = gf.ifft( v_Bz , 1 , 0 )
     //f_Cz = gf.ifft( v_Cz , 1 , 0 )
+    gfvec_ifft( *f_Az , gfvec_slice(*v_Az,0,pad_len) , 0 );
+    gfvec_ifft( *f_Bz , gfvec_slice(*v_Bz,0,pad_len) , 0 );
+    gfvec_ifft( *f_Cz , gfvec_slice(*v_Cz,0,pad_len) , 0 );
+
     //v_Az.extend( gf.fft( f_Az , 1 , pad_len ) )
     //v_Bz.extend( gf.fft( f_Bz , 1 , pad_len ) )
     //v_Cz.extend( gf.fft( f_Cz , 1 , pad_len ) )
-
+    gfvec_fft( gfvec_slice(*v_Az,pad_len,pad_len) , *f_Az , pad_len );
+    gfvec_fft( gfvec_slice(*v_Bz,pad_len,pad_len) , *f_Bz , pad_len );
+    gfvec_fft( gfvec_slice(*v_Cz,pad_len,pad_len) , *f_Cz , pad_len );
 }
 
 
@@ -190,7 +222,28 @@ def generate_proof( R1CS , h_state , Nq = 26 , RS_rho = 8 , RS_shift=1<<63 , ver
 
 int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * h_state)
 {
-    // first commit
+    gfvec_t f_w, v_z_pad;
+    process_R1CS_z( &f_w , &v_z_pad , r1cs_z );
+    gfvec_t f_Az, f_Bz, f_Cz, v_Az, v_Bz, v_Cz;
+    process_R1CS( &f_Az , &f_Bz , &f_Cz , &v_Az , &v_Bz , &v_Cz , r1cs_z );
+
+    unsigned pad_len = R1CS_PADLEN;
+    gfvec_t v_r_lincheck; gfvec_alloc(&v_r_lincheck,2*pad_len);
+    gfvec_t r_lincheck;   gfvec_alloc(&r_lincheck,  2*pad_len);
+    gfvec_t r_ldt;        gfvec_alloc(&r_ldt,       2*pad_len);
+
+    //v_r_lincheck = [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len*2) ]
+    randombytes( (uint8_t*)(r_lincheck.sto) , 2*pad_len*GF_BYTES );
+    gfvec_from_u64vec( v_r_lincheck , r_lincheck.sto );
+    //r_ldt = [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len*2) ]
+    randombytes( (uint8_t*)(r_lincheck.sto) , 2*pad_len*GF_BYTES );
+    gfvec_from_u64vec( r_ldt , r_lincheck.sto );
+    //for i in range(pad_len): v_r_lincheck[0] ^= v_r_lincheck[i]
+    gfvec_lincheck_reduce( gfvec_slice(v_r_lincheck,0,pad_len) );
+    //r_lincheck = gf.ifft(v_r_lincheck, 1 , 0 )
+    gfvec_ifft(r_lincheck, v_r_lincheck , 0 );
+
+    // first commit  // commit_polys( [f_w , f_Az , f_Bz , f_Cz , r_lincheck , r_ldt ]
 
     // lin-check and second commit
 
@@ -201,6 +254,17 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
     // open queries
 
 
+    gfvec_free(&v_r_lincheck);
+    gfvec_free(&r_lincheck);
+    gfvec_free(&r_ldt);
+    gfvec_free(&f_w);
+    gfvec_free(&v_z_pad);
+    gfvec_free(&f_Az);
+    gfvec_free(&f_Bz);
+    gfvec_free(&f_Cz);
+    gfvec_free(&v_Az);
+    gfvec_free(&v_Bz);
+    gfvec_free(&v_Cz);
 
     return 0;
 }

@@ -81,6 +81,12 @@ void gfvec_from_u8gfvec( gfvec_t dest, const uint8_t* src ) {
 
 /////////////////////////////////////////////
 
+static inline void gfvec_lincheck_reduce( gfvec_t poly ) {
+    for(unsigned j=0;j<GF_EXT_DEG;j++) {
+        for(unsigned i=1;i<poly.len;i++) poly.vec[j][0]^=poly.vec[j][i];
+    }
+}
+
 void gfvec_mul( gfvec_t c, gfvec_t a , gfvec_t b );
 
 void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );

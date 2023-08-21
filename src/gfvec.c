@@ -127,6 +127,8 @@ void gfvec_ibtfy_1stage( gfvec_t vec, uint64_t shift )
 }
 
 
+#include "polydiv.h"
+
 void gfvec_polydiv( gfvec_t poly , unsigned si )
 {
     for(int k=0;k<GF_EXT_DEG;k++) {
