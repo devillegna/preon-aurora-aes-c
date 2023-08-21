@@ -44,6 +44,14 @@ gfvec_t gfvec_slice(gfvec_t src, unsigned st_idx, unsigned len ) {
 }
 
 static inline
+void gfvec_borrow_slice(gfvec_t * dest, gfvec_t * src, unsigned st_idx, unsigned len ) {
+    dest->_stosize_u64 = src->_stosize_u64;  src->_stosize_u64 = 0;
+    dest->sto = src->sto;                    src->sto = NULL;
+    dest->len = len;
+    for(unsigned j=0;j<GF_EXT_DEG;j++) dest->vec[j] = (src->vec[j])+st_idx;
+}
+
+static inline
 void gfvec_to_u64vec( uint64_t* dest, const gfvec_t src ) {
     for(unsigned i=0;i<src.len;i++) {
         for(int j=0;j<GF_EXT_DEG;j++) dest[j]=src.vec[j][i];
@@ -59,8 +67,21 @@ void gfvec_from_u64vec( gfvec_t dest, const uint64_t* src ) {
     }
 }
 
+static inline
+void gfvec_lift_from_u64gfvec( gfvec_t dest ) {
+    for(unsigned j=1;j<GF_EXT_DEG;j++) { for(unsigned i=0;i<dest.len;i++) dest.vec[j][i]=0; }    
+}
+
+static inline
+void gfvec_from_u8gfvec( gfvec_t dest, const uint8_t* src ) {
+    for(unsigned i=0;i<dest.len;i++) { dest.vec[0][i] = src[i]; }
+    gfvec_lift_from_u64gfvec(dest);
+}
+
+
 /////////////////////////////////////////////
 
+void gfvec_mul( gfvec_t c, gfvec_t a , gfvec_t b );
 
 void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );
 
@@ -72,7 +93,9 @@ void gfvec_ifft( gfvec_t dest, const gfvec_t src , uint64_t shift );
 
 void gfvec_ibtfy_1stage( gfvec_t vec, uint64_t shift );
 
+void gfvec_polydiv( gfvec_t poly , unsigned si );
 
+void gfvec_ipolydiv( gfvec_t poly , unsigned si );
 
 //////////////////////////////////////////////
 // debug

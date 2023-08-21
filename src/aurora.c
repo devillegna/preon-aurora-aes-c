@@ -5,6 +5,106 @@
 
 
 
+#if 0
+def process_R1CS( R1CS , verbose = 1 ):
+    if 1 == verbose : dump = print
+    else : dump = _dummy
+
+    mat_A , mat_B , mat_C , vec_z , witness_idx = R1CS
+    n = mat_A.n_cols
+    m = mat_A.n_rows
+    pad_len = _pad_len( max(n,m) )
+    inst_dim = _log2(witness_idx)
+    dump( f"pad_len: {pad_len}, inst_dim: {inst_dim}" )
+
+    dump( "padding and calcuate f_1v, f_z, f_w" )
+    st = time.time()
+    p_vec_z = vec_z + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(vec_z)) ]   # ZK
+    #p_vec_z = vec_z + [ 0 for _ in range(pad_len-len(vec_z)) ]    # no ZK
+    f_z = gf.ifft( p_vec_z , 1 , 0 );   p_vec_z.extend( gf.fft( f_z , 1 , pad_len ) )
+    f_w = gf.polydiv( f_z , inst_dim )[witness_idx:] + [0]*witness_idx
+    ed = time.time()
+    dump( "time:", format(ed-st) , "secs" )
+    dump( f"f_z : [{len(f_z)}] ...[{witness_idx-4}:{witness_idx+4}]:", f_z[witness_idx-4:witness_idx+4] , "..." )
+    dump( f"f_w : (f_z - f_1v) /Z_{inst_dim} : " , f_w[:4] , "..." )
+
+    #f_1v = cgf.ibtfy( vec_z[:witness_idx] , 0 )   # shouldn't compute it actually. do this for checking correctness only.
+    #dump( f"f_1v : [{len(f_1v)}] ...[{witness_idx-4}:]:", f_1v[witness_idx-4:] )
+
+    dump( "calculate Az, Bz, Cz" )
+    st = time.time()
+    Az = mat_x_vec( mat_A , vec_z )
+    Bz = mat_x_vec( mat_B , vec_z )
+    Cz = mat_x_vec( mat_C , vec_z )
+    ed = time.time()
+    dump( "time:", format(ed-st) , "secs" )
+    # XXX: check if Az*Bz == Cz here
+
+    dump( "calculate f_Az, f_Bz, f_Cz" )
+    st = time.time()
+    v_Az    = Az + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Az)) ]
+    v_Bz    = Bz + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Bz)) ]
+    v_Cz    = Cz + [ gf.mul(v_Az[i],v_Bz[i]) for i in range(m,pad_len) ]           # !!! XXX: need to discuss here
+    f_Az = gf.ifft( v_Az , 1 , 0 )
+    f_Bz = gf.ifft( v_Bz , 1 , 0 )
+    f_Cz = gf.ifft( v_Cz , 1 , 0 )
+    v_Az.extend( gf.fft( f_Az , 1 , pad_len ) )
+    v_Bz.extend( gf.fft( f_Bz , 1 , pad_len ) )
+    v_Cz.extend( gf.fft( f_Cz , 1 , pad_len ) )
+    ed = time.time()
+    dump( "time:", format(ed-st) , "secs" )
+
+    return f_w , p_vec_z , f_Az , f_Bz , f_Cz , v_Az , v_Bz , v_Cz
+#endif
+
+
+#include "aes128r1cs.h"
+#include "randombytes.h"
+
+static
+void process_R1CS( gfvec_t *f_w , gfvec_t *v_z_pad , gfvec_t *f_Az , gfvec_t *f_Bz , gfvec_t *f_Cz , gfvec_t *v_Az , gfvec_t *v_Bz , gfvec_t *v_Cz , const uint8_t * r1cs_z )
+{
+    //pad_len = _pad_len( max(n,m) )
+    //inst_dim = _log2(witness_idx)
+    unsigned pad_len = R1CS_PADLEN;
+    unsigned inst_dim = R1CS_INSTANCE_DIM;
+
+    uint64_t temp64[R1CS_PADLEN*GF_NUMU64];
+    uint8_t * temp8 = (uint8_t*)temp64;
+
+    //p_vec_z = vec_z + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(vec_z)) ]   # ZK
+    gfvec_alloc( v_z_pad , pad_len*2 );
+    gfvec_from_u8gfvec( gfvec_slice(*v_z_pad,0,R1CS_NCOL), r1cs_z );
+    randombytes( temp8 , (pad_len-R1CS_NCOL)*GF_BYTES );
+    gfvec_from_u64vec( gfvec_slice(*v_z_pad,R1CS_NCOL,(pad_len-R1CS_NCOL)) , temp64 );
+
+    gfvec_t f_z;   gfvec_alloc( &f_z , pad_len + R1CS_WITNESS_IDX );
+    gfvec_ifft( gfvec_slice( f_z , 0 , pad_len ) , gfvec_slice(*v_z_pad,0, pad_len ) , 0 );             //f_z = gf.ifft( p_vec_z , 1 , 0 );   
+    gfvec_fft( gfvec_slice(*v_z_pad,pad_len, pad_len ) , gfvec_slice( f_z , 0 , pad_len ) , pad_len );  // p_vec_z.extend( gf.fft( f_z , 1 , pad_len ) )
+
+    //f_w = gf.polydiv( f_z , inst_dim )[witness_idx:] + [0]*witness_idx
+    gfvec_polydiv( gfvec_slice(f_z,0,pad_len) , inst_dim );
+    gfvec_borrow_slice( f_w , &f_z , R1CS_WITNESS_IDX , pad_len );
+    uint8_t zero[R1CS_WITNESS_IDX] = {0};
+    gfvec_from_u8gfvec( gfvec_slice(*f_w,pad_len-R1CS_WITNESS_IDX,R1CS_WITNESS_IDX) , zero );
+
+    //Az = mat_x_vec( mat_A , vec_z )
+    //Bz = mat_x_vec( mat_B , vec_z )
+    //Cz = mat_x_vec( mat_C , vec_z )
+
+    //v_Az    = Az + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Az)) ]
+    //v_Bz    = Bz + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Bz)) ]
+    //v_Cz    = Cz + [ gf.mul(v_Az[i],v_Bz[i]) for i in range(m,pad_len) ]           # !!! XXX: need to discuss here
+    //f_Az = gf.ifft( v_Az , 1 , 0 )
+    //f_Bz = gf.ifft( v_Bz , 1 , 0 )
+    //f_Cz = gf.ifft( v_Cz , 1 , 0 )
+    //v_Az.extend( gf.fft( f_Az , 1 , pad_len ) )
+    //v_Bz.extend( gf.fft( f_Bz , 1 , pad_len ) )
+    //v_Cz.extend( gf.fft( f_Cz , 1 , pad_len ) )
+
+}
+
+
 
 #if 0
 def generate_proof( R1CS , h_state , Nq = 26 , RS_rho = 8 , RS_shift=1<<63 , verbose = 1 ) :
@@ -90,6 +190,17 @@ def generate_proof( R1CS , h_state , Nq = 26 , RS_rho = 8 , RS_shift=1<<63 , ver
 
 int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * h_state)
 {
+    // first commit
+
+    // lin-check and second commit
+
+
+    // generate the polynomial for ldt
+
+
+    // open queries
+
+
 
     return 0;
 }

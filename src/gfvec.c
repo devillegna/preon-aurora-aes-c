@@ -39,6 +39,12 @@ void gfvec_free( gfvec_t *v)
 
 #include "gf2192.h"
 
+void gfvec_mul( gfvec_t c, gfvec_t a , gfvec_t b )
+{
+    for(unsigned i=0;i<c.len;i++) {
+        gf2192_mul( c.vec[0]+i , c.vec[1]+i , c.vec[2]+i , a.vec[0][i] , a.vec[1][i] , a.vec[2][i] , b.vec[0][i] , b.vec[1][i] , b.vec[2][i] );
+    }
+}
 
 void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf )
 {
@@ -118,8 +124,21 @@ void gfvec_ibtfy_1stage( gfvec_t vec, uint64_t shift )
             ibtfy_64( &vec.vec[k][i] , 1 , shift+i );
         }
     }
+}
 
 
+void gfvec_polydiv( gfvec_t poly , unsigned si )
+{
+    for(int k=0;k<GF_EXT_DEG;k++) {
+        polydiv( poly.vec[k] , (int)poly.len , si );
+    }
+}
+
+void gfvec_ipolydiv( gfvec_t poly , unsigned si )
+{
+    for(int k=0;k<GF_EXT_DEG;k++) {
+        ipolydiv( poly.vec[k] , (int)poly.len , si );
+    }
 }
 
 
