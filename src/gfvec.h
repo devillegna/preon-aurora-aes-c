@@ -60,6 +60,18 @@ void gfvec_to_u64vec( uint64_t* dest, const gfvec_t src ) {
 }
 
 static inline
+void gfvec_2gfele_to_u64vec_slice( uint64_t* dest, unsigned interval_u64, const gfvec_t src ) {
+    for(unsigned i=0;i<src.len;i+=2) {
+        unsigned idx=0;
+        for(int j=0;j<GF_EXT_DEG;j++) {
+            dest[idx++]=src.vec[j][i];
+            dest[idx++]=src.vec[j][i+1];
+        }
+        dest += interval_u64;
+    }
+}
+
+static inline
 void gfvec_from_u64vec( gfvec_t dest, const uint64_t* src ) {
     for(unsigned i=0;i<dest.len;i++) {
         for(int j=0;j<GF_EXT_DEG;j++) dest.vec[j][i]=src[j];

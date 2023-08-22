@@ -5,58 +5,6 @@
 
 
 
-#if 0
-def process_R1CS( R1CS , verbose = 1 ):
-    if 1 == verbose : dump = print
-    else : dump = _dummy
-
-    mat_A , mat_B , mat_C , vec_z , witness_idx = R1CS
-    n = mat_A.n_cols
-    m = mat_A.n_rows
-    pad_len = _pad_len( max(n,m) )
-    inst_dim = _log2(witness_idx)
-    dump( f"pad_len: {pad_len}, inst_dim: {inst_dim}" )
-
-    dump( "padding and calcuate f_1v, f_z, f_w" )
-    st = time.time()
-    p_vec_z = vec_z + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(vec_z)) ]   # ZK
-    #p_vec_z = vec_z + [ 0 for _ in range(pad_len-len(vec_z)) ]    # no ZK
-    f_z = gf.ifft( p_vec_z , 1 , 0 );   p_vec_z.extend( gf.fft( f_z , 1 , pad_len ) )
-    f_w = gf.polydiv( f_z , inst_dim )[witness_idx:] + [0]*witness_idx
-    ed = time.time()
-    dump( "time:", format(ed-st) , "secs" )
-    dump( f"f_z : [{len(f_z)}] ...[{witness_idx-4}:{witness_idx+4}]:", f_z[witness_idx-4:witness_idx+4] , "..." )
-    dump( f"f_w : (f_z - f_1v) /Z_{inst_dim} : " , f_w[:4] , "..." )
-
-    #f_1v = cgf.ibtfy( vec_z[:witness_idx] , 0 )   # shouldn't compute it actually. do this for checking correctness only.
-    #dump( f"f_1v : [{len(f_1v)}] ...[{witness_idx-4}:]:", f_1v[witness_idx-4:] )
-
-    dump( "calculate Az, Bz, Cz" )
-    st = time.time()
-    Az = mat_x_vec( mat_A , vec_z )
-    Bz = mat_x_vec( mat_B , vec_z )
-    Cz = mat_x_vec( mat_C , vec_z )
-    ed = time.time()
-    dump( "time:", format(ed-st) , "secs" )
-    # XXX: check if Az*Bz == Cz here
-
-    dump( "calculate f_Az, f_Bz, f_Cz" )
-    st = time.time()
-    v_Az    = Az + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Az)) ]
-    v_Bz    = Bz + [ gf.from_bytes(rd.randombytes(gf.GF_BSIZE)) for _ in range(pad_len-len(Bz)) ]
-    v_Cz    = Cz + [ gf.mul(v_Az[i],v_Bz[i]) for i in range(m,pad_len) ]           # !!! XXX: need to discuss here
-    f_Az = gf.ifft( v_Az , 1 , 0 )
-    f_Bz = gf.ifft( v_Bz , 1 , 0 )
-    f_Cz = gf.ifft( v_Cz , 1 , 0 )
-    v_Az.extend( gf.fft( f_Az , 1 , pad_len ) )
-    v_Bz.extend( gf.fft( f_Bz , 1 , pad_len ) )
-    v_Cz.extend( gf.fft( f_Cz , 1 , pad_len ) )
-    ed = time.time()
-    dump( "time:", format(ed-st) , "secs" )
-
-    return f_w , p_vec_z , f_Az , f_Bz , f_Cz , v_Az , v_Bz , v_Cz
-#endif
-
 
 #include "aes128r1cs.h"
 #include "randombytes.h"
@@ -218,6 +166,27 @@ def generate_proof( R1CS , h_state , Nq = 26 , RS_rho = 8 , RS_shift=1<<63 , ver
 #endif
 
 
+static
+void first_commit( mt_t mt1 , gfvec_t mesgs1 , gfvec_t f_w , gfvec_t f_Az , gfvec_t f_Bz , gfvec_t f_Cz , gfvec_t r_lincheck , gfvec_t r_ldt )
+{
+    gfvec_t rs_code;
+    gfvec_alloc(&rs_code,AURORA_MT_N_MESG*2);
+    gfvec_fft(rs_code,f_w,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 0*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_fft(rs_code,f_Az,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 1*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_fft(rs_code,f_Bz,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 2*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_fft(rs_code,f_Cz,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 3*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_fft(rs_code,r_lincheck,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 4*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_fft(rs_code,r_ldt,RS_SHIFT);
+    gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 5*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+    gfvec_free(&rs_code);
+
+    mt_commit(mt1,(uint8_t*)mesgs1.sto,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG);
+}
 
 
 int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * h_state)
@@ -244,6 +213,9 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
     gfvec_ifft(r_lincheck, v_r_lincheck , 0 );
 
     // first commit  // commit_polys( [f_w , f_Az , f_Bz , f_Cz , r_lincheck , r_ldt ]
+    gfvec_t first_mesgs;  gfvec_alloc(&first_mesgs,AURORA_MT_MESG0_LEN*AURORA_MT_N_MESG/GF_BYTES);
+    mt_t first_mt;   mt_init(&first_mt,AURORA_MT_N_MESG);
+    memcpy( proof , first_mt.root , PREON_HASH_LEN );
 
     // lin-check and second commit
 
@@ -253,6 +225,10 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
 
     // open queries
 
+
+    // clean
+    gfvec_free(&first_mesgs);
+    mt_free(&first_mt);
 
     gfvec_free(&v_r_lincheck);
     gfvec_free(&r_lincheck);
