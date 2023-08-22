@@ -63,10 +63,8 @@ static inline
 void gfvec_2gfele_to_u64vec_slice( uint64_t* dest, unsigned interval_u64, const gfvec_t src ) {
     for(unsigned i=0;i<src.len;i+=2) {
         unsigned idx=0;
-        for(int j=0;j<GF_EXT_DEG;j++) {
-            dest[idx++]=src.vec[j][i];
-            dest[idx++]=src.vec[j][i+1];
-        }
+        for(int j=0;j<GF_EXT_DEG;j++) { dest[idx++]=src.vec[j][i]; }
+        for(int j=0;j<GF_EXT_DEG;j++) { dest[idx++]=src.vec[j][i+1]; }
         dest += interval_u64;
     }
 }
@@ -95,7 +93,7 @@ void gfvec_from_u8gfvec( gfvec_t dest, const uint8_t* src ) {
 
 static inline void gfvec_lincheck_reduce( gfvec_t poly ) {
     for(unsigned j=0;j<GF_EXT_DEG;j++) {
-        for(unsigned i=1;i<poly.len;i++) poly.vec[j][0]^=poly.vec[j][i];
+        for(unsigned i=0;i<poly.len;i++) poly.vec[j][0]^=poly.vec[j][i];
     }
 }
 

@@ -41,14 +41,16 @@ int test_0(void)
     uint8_t sk[PREON_SKLEN];
     uint8_t sig[PREON_SIGLEN];
 
-    uint8_t mesg[4] = { '1','2','3','4' };
-
+    uint8_t mesg[3] = { '1','2','3' };
 
     printf("test genkey/sign/verify.\n");
     printf("pk len:%d, sk len:%d, sig len:%d, mesg len:%d\n",sizeof(pk),sizeof(sk),sizeof(sig),sizeof(mesg));
 
-
     preon_keygen( pk , sk );
+
+	printf("pk:\n"); print_u8( pk , 32 );
+	printf("sk:\n"); print_u8( sk , 32 );
+	printf("mesg: %d %d %d\n", mesg[0], mesg[1], mesg[2] );
 
     preon_sign( sig , sk , mesg , sizeof(mesg) );
 

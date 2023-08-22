@@ -5,6 +5,19 @@
 
 
 
+static void dump_u8(const unsigned char * s , const unsigned char *data, unsigned len )
+{
+    printf("%s", s);
+	for(unsigned i=0;i<len;i++) {
+		if( 0 == (i&15) ) printf("%3d: ",i);
+		printf("%02x,", data[i] );
+		if( 3 == (i&3) ) printf(".");
+		if( 7 == (i&7) ) printf(" ");
+		if( 15 == (i&15) ) printf("\n");
+	}
+}
+
+
 
 #include "aes128r1cs.h"
 #include "randombytes.h"
@@ -173,16 +186,29 @@ void first_commit( mt_t mt1 , gfvec_t mesgs1 , gfvec_t f_w , gfvec_t f_Az , gfve
     gfvec_alloc(&rs_code,AURORA_MT_N_MESG*2);
     gfvec_fft(rs_code,f_w,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 0*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+uint64_t * ptr;
+ptr = &mesgs1.sto[0];
+printf("[RS] f_W: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Az,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 1*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+ptr = &mesgs1.sto[6];
+printf("[RS] f_Az: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Bz,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 2*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+ptr = &mesgs1.sto[12];
+printf("[RS] f_Bz: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Cz,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 3*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+ptr = &mesgs1.sto[18];
+printf("[RS] f_Cz: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,r_lincheck,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 4*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+ptr = &mesgs1.sto[24];
+printf("[RS] r_lin: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,r_ldt,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 5*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
+ptr = &mesgs1.sto[30];
+printf("[RS] r_ldt: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_free(&rs_code);
 
     mt_commit(mt1,(uint8_t*)mesgs1.sto,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG);
@@ -191,6 +217,7 @@ void first_commit( mt_t mt1 , gfvec_t mesgs1 , gfvec_t f_w , gfvec_t f_Az , gfve
 
 int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * h_state)
 {
+dump_u8("h_state\n",h_state,PREON_HASH_LEN);
     gfvec_t f_w, v_z_pad;
     process_R1CS_z( &f_w , &v_z_pad , r1cs_z );
     gfvec_t f_Az, f_Bz, f_Cz, v_Az, v_Bz, v_Cz;
@@ -215,7 +242,13 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
     // first commit  // commit_polys( [f_w , f_Az , f_Bz , f_Cz , r_lincheck , r_ldt ]
     gfvec_t first_mesgs;  gfvec_alloc(&first_mesgs,AURORA_MT_MESG0_LEN*AURORA_MT_N_MESG/GF_BYTES);
     mt_t first_mt;   mt_init(&first_mt,AURORA_MT_N_MESG);
-    memcpy( proof , first_mt.root , PREON_HASH_LEN );
+    first_commit(first_mt,first_mesgs,f_w,f_Az,f_Bz,f_Cz,r_lincheck,r_ldt);
+    memcpy( proof , first_mt.root , PREON_HASH_LEN );  proof += PREON_HASH_LEN;
+    hash_2mesg(h_state,h_state,PREON_HASH_LEN,first_mt.root,PREON_HASH_LEN);
+
+dump_u8("mt root\n",first_mt.root,PREON_HASH_LEN);
+dump_u8("h_state\n",h_state,PREON_HASH_LEN);
+
 
     // lin-check and second commit
 
