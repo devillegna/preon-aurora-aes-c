@@ -94,6 +94,9 @@ void frildt_query_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], con
 
 int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_state );
 
+int frildt_gen_proof_core( uint8_t * proof , uint32_t *queries, gfvec_t v0, const uint8_t *h_state );
+
+
 ////////////////////////
 
 //def ldt_recover_challenges( _poly_len , h_state , commits , d1poly , Nq , RS_rho = 8 , verbose = 1 ):     return xi , queries

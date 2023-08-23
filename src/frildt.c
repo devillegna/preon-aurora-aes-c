@@ -101,9 +101,26 @@ void frildt_query_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], con
 }
 
 
+int frildt_gen_proof_core( uint8_t * proof , uint32_t * queries, const gfvec_t v0, const uint8_t *ih_state )
+{
+    uint8_t h_state[FRI_HASH_LEN];  memcpy( h_state , ih_state , FRI_HASH_LEN );
+    mt_t mkts[FRI_CORE_N_COMMITS];
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_init( &mkts[i] , FRI_MT_N_MESG>>(1+i) ); }  // XXX: check malloc errors
+    gfvec_t mesgs[FRI_CORE_N_COMMITS];
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_alloc( &mesgs[i] , FRI_MT_N_MESG>>(i) ); }  // XXX: check malloc errors
 
+    if( 0 != frildt_commit_phase( proof , mkts, mesgs, v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
+    proof += FRI_CORE_N_COMMITS*FRI_HASH_LEN + 2*FRI_GF_BYTES;
+    frildt_get_queries( queries , h_state );
+    frildt_query_phase( proof , mkts , mesgs , queries );
 
-int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_state )
+    // clean
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_free( &mkts[i] ); }
+    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_free( &mesgs[i] ); }
+    return 0;
+}
+
+int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *h_state )
 {
     gfvec_t v0;
     gfvec_alloc( &v0 , FRI_POLYLEN*FRI_RS_RHO );
@@ -120,30 +137,17 @@ int frildt_gen_proof( uint8_t * proof , const gfvec_t *f0, const uint8_t *ih_sta
     memcpy( proof , mkt.root , FRI_HASH_LEN );  // output first commit
     proof += FRI_HASH_LEN;
 
-    // commits the same messages with aurora
-    uint8_t h_state[FRI_HASH_LEN];  memcpy( h_state , ih_state , FRI_HASH_LEN );
-    mt_t mkts[FRI_CORE_N_COMMITS];
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_init( &mkts[i] , FRI_MT_N_MESG>>(1+i) ); }  // XXX: check malloc errors
-    gfvec_t mesgs[FRI_CORE_N_COMMITS];
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_alloc( &mesgs[i] , FRI_MT_N_MESG>>(i) ); }  // XXX: check malloc errors
-
-    if( 0 != frildt_commit_phase( proof , mkts, mesgs, v0 , FRI_POLYLEN , h_state ) ) { printf("fri commit phase fails.\n"); abort(); }
-    proof += FRI_CORE_N_COMMITS*FRI_HASH_LEN + 2*FRI_GF_BYTES;
-
     uint32_t queries[FRI_N_QUERY];
-    frildt_get_queries( queries , h_state );
+    frildt_gen_proof_core( proof , queries , v0 , h_state );
+    proof += FRI_CORE_LEN;
 
-    frildt_query_phase( proof , mkts , mesgs , queries );
-    proof += FRI_CORE_OPEN_LEN;
     // first opened mesgs
     mt_batchopen( proof , mkt , (uint8_t*)gfmesg.sto , FRI_MT_MESG_LEN , queries , FRI_N_QUERY );  // open first commit
 
     // clean
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { mt_free( &mkts[i] ); }
-    for(int i=0;i<FRI_CORE_N_COMMITS;i++) { gfvec_free( &mesgs[i] ); }
     gfvec_free( &gfmesg );
-    mt_free( &mkt );
     gfvec_free( &v0 );
+    mt_free( &mkt );
     return 0;
 }
 
