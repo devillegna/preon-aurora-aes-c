@@ -55,7 +55,7 @@ int frildt_commit_phase( uint8_t * proof , mt_t mktrees[] , gfvec_t mesgs[], gfv
     gfvec_to_u64vec( d1poly , vi );
     memcpy( proof , d1poly , 2*FRI_GF_BYTES );  proof += 2*FRI_GF_BYTES;
 
-    hash_2mesg( h_state , h_state , FRI_HASH_LEN , (uint8_t*)d1poly , 2*FRI_GF_BYTES );
+    hash_2mesg( h_state , u8ptr_xi , FRI_GF_BYTES , (uint8_t*)d1poly , 2*FRI_GF_BYTES );
 
     return 0;
 }
@@ -75,9 +75,10 @@ FRI_CORE_N_COMMITS error: QUERY overflow.
     //queries = [ int.from_bytes(e,'little')&idx_mask for e in queries ]
 
     uint32_t h32_state[FRI_HASH_LEN/sizeof(uint32_t)];
-    uint8_t bytes[2] = { 3 + FRI_CORE_N_COMMITS , 0};
+    uint8_t bytes[2] = { 4 + FRI_CORE_N_COMMITS , 0};
     uint32_t idx_mask = FRI_MT_N_MESG - 1;
     for(uint8_t j=1;j<=FRI_N_QUERY;j++) {
+        bytes[1] = j;
         hash_2mesg( (uint8_t*)h32_state , h_state , FRI_HASH_LEN , bytes , 2 );
         queries[j-1] = h32_state[0]&idx_mask;           // XXX: endianness
     }
@@ -174,7 +175,7 @@ void frildt_recover_challenges( uint32_t * queries , uint64_t *d1poly , uint64_t
         for(int j=0;j<FRI_GF_NUMU64;j++) xi[j]=temp[j];
     }
     memcpy( d1poly , proof , 2*FRI_GF_BYTES );  proof += 2*FRI_GF_BYTES;
-    hash_2mesg( h_state , h_state , FRI_HASH_LEN , (uint8_t*)d1poly , 2*FRI_GF_BYTES );
+    hash_2mesg( h_state , (uint8_t*)xi , FRI_GF_BYTES , (uint8_t*)d1poly , 2*FRI_GF_BYTES );
 
     frildt_get_queries( queries , h_state );
 }
