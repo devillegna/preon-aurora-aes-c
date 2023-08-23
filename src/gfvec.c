@@ -35,6 +35,8 @@ void gfvec_free( gfvec_t *v)
 
 ////////////////////////////////////////////////////
 
+
+
 #if 24 == GF_BYTES
 
 #include "gf2192.h"
@@ -50,6 +52,13 @@ void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf )
 {
     for(unsigned i=0;i<vec.len;i++) {
         gf2192_mul( vec.vec[0]+i , vec.vec[1]+i , vec.vec[2]+i , vec.vec[0][i] , vec.vec[1][i] , vec.vec[2][i] , gf[0] , gf[1] , gf[2] );
+    }
+}
+
+void gfvec_mul_scalar2( gfvec_t c, gfvec_t a, const uint64_t * b )
+{
+    for(unsigned i=0;i<c.len;i++) {
+        gf2192_mul( c.vec[0]+i , c.vec[1]+i , c.vec[2]+i , a.vec[0][i] , a.vec[1][i] , a.vec[2][i] , b[0] , b[1] , b[2] );
     }
 }
 

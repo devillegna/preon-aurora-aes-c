@@ -60,6 +60,14 @@ void gfvec_to_u64vec( uint64_t* dest, const gfvec_t src ) {
 }
 
 static inline
+void gfvec_from_u64vec( gfvec_t dest, const uint64_t* src ) {
+    for(unsigned i=0;i<dest.len;i++) {
+        for(int j=0;j<GF_EXT_DEG;j++) dest.vec[j][i]=src[j];
+        src += GF_EXT_DEG;
+    }
+}
+
+static inline
 void gfvec_2gfele_to_u64vec_slice( uint64_t* dest, unsigned interval_u64, const gfvec_t src ) {
     for(unsigned i=0;i<src.len;i+=2) {
         unsigned idx=0;
@@ -70,11 +78,13 @@ void gfvec_2gfele_to_u64vec_slice( uint64_t* dest, unsigned interval_u64, const 
 }
 
 static inline
-void gfvec_from_u64vec( gfvec_t dest, const uint64_t* src ) {
-    for(unsigned i=0;i<dest.len;i++) {
-        for(int j=0;j<GF_EXT_DEG;j++) dest.vec[j][i]=src[j];
-        src += GF_EXT_DEG;
-    }
+void gfvec_copy( gfvec_t dest , gfvec_t src ) {
+    for(unsigned j=0;j<GF_EXT_DEG;j++) { for(unsigned i=0;i<src.len;i++) dest.vec[j][i]=src.vec[j][i]; }    
+}
+
+static inline
+void gfvec_set_zero( gfvec_t dest ) {
+    for(unsigned j=0;j<GF_EXT_DEG;j++) { for(unsigned i=0;i<dest.len;i++) dest.vec[j][i]=0; }    
 }
 
 static inline
@@ -97,9 +107,17 @@ static inline void gfvec_lincheck_reduce( gfvec_t poly ) {
     }
 }
 
+static inline void gfvec_add( gfvec_t c, gfvec_t a , gfvec_t b ) {
+    for(unsigned j=0;j<GF_EXT_DEG;j++){
+        for(unsigned i=0;i<c.len;i++) { c.vec[j][i] = a.vec[j][i]^b.vec[j][i]; }
+    }
+}
+
 void gfvec_mul( gfvec_t c, gfvec_t a , gfvec_t b );
 
 void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );
+
+void gfvec_mul_scalar2( gfvec_t c, gfvec_t a, const uint64_t * b );
 
 void gfvec_frildt_reduce( gfvec_t *polyx2, const uint64_t *xi );
 

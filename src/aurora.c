@@ -46,8 +46,7 @@ void process_R1CS_z( gfvec_t *f_w , gfvec_t *v_z_pad , const uint8_t * r1cs_z )
     //f_w = gf.polydiv( f_z , inst_dim )[witness_idx:] + [0]*witness_idx
     gfvec_polydiv( gfvec_slice(f_z,0,pad_len) , inst_dim );
     gfvec_borrow_slice( f_w , &f_z , R1CS_WITNESS_IDX , pad_len );
-    uint8_t zero[R1CS_WITNESS_IDX] = {0};
-    gfvec_from_u8gfvec( gfvec_slice(*f_w,pad_len-R1CS_WITNESS_IDX,R1CS_WITNESS_IDX) , zero );
+    gfvec_set_zero( gfvec_slice(*f_w,pad_len-R1CS_WITNESS_IDX,R1CS_WITNESS_IDX) );
 }
 
 static
@@ -186,32 +185,164 @@ void first_commit( mt_t mt1 , gfvec_t mesgs1 , gfvec_t f_w , gfvec_t f_Az , gfve
     gfvec_alloc(&rs_code,AURORA_MT_N_MESG*2);
     gfvec_fft(rs_code,f_w,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 0*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-uint64_t * ptr;
-ptr = &mesgs1.sto[0];
-printf("[RS] f_W: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Az,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 1*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-ptr = &mesgs1.sto[6];
-printf("[RS] f_Az: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Bz,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 2*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-ptr = &mesgs1.sto[12];
-printf("[RS] f_Bz: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,f_Cz,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 3*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-ptr = &mesgs1.sto[18];
-printf("[RS] f_Cz: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,r_lincheck,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 4*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-ptr = &mesgs1.sto[24];
-printf("[RS] r_lin: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_fft(rs_code,r_ldt,RS_SHIFT);
     gfvec_2gfele_to_u64vec_slice( mesgs1.sto + 5*2*GF_NUMU64 , 6*2*GF_NUMU64 , rs_code );
-ptr = &mesgs1.sto[30];
-printf("[RS] r_ldt: %llx %llx %llx, %llx %llx %llx\n",ptr[0],ptr[1],ptr[2], ptr[3],ptr[4],ptr[5]);
     gfvec_free(&rs_code);
 
     mt_commit(mt1,(uint8_t*)mesgs1.sto,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG);
+}
+
+
+
+#if 0
+def lincheck_step1( alpha , mat_A , mat_B , mat_C , pad_len , value_or_poly , verbose = 1 ) :
+    if 1 == verbose : dump = print
+    else : dump = _dummy
+
+    n = mat_A.n_cols
+    m = mat_A.n_rows
+
+    ## lincheck
+    dump( "lin-check starts. calculate f_alpha, v_alpha" )
+    st = time.time()
+    v_alpha =  [ 1 , alpha ] + [0]*(pad_len-2)
+    for i in range(2,m): v_alpha[i] = gf.mul( v_alpha[i-1], v_alpha[1] )
+    f_alpha = gf.ifft( v_alpha , 1 , 0 )
+    ed = time.time()
+    dump( "time:" , format(ed-st) , "secs" )
+
+    dump( "lin-check step 1. calculate p2A, p2B, p2C and evaluate their values" )
+    dump( "evaluate values of p2A, p2B, p2C" )
+    st = time.time()
+    v_p2A = [ _vec_dotproduct( mat_A.col[j] , v_alpha ) for j in range(n) ]; v_p2A.extend( [0]*(pad_len-n) )
+    v_p2B = [ _vec_dotproduct( mat_B.col[j] , v_alpha ) for j in range(n) ]; v_p2B.extend( [0]*(pad_len-n) )
+    v_p2C = [ _vec_dotproduct( mat_C.col[j] , v_alpha ) for j in range(n) ]; v_p2C.extend( [0]*(pad_len-n) )
+    ed = time.time()
+    dump( "time:" , format(ed-st) , "secs" )
+    dump( "interpolate p2A, p2B, p2C" )
+    st = time.time()
+    p2A , p2B , p2C = gf.ifft( v_p2A , 1 , 0 ) , gf.ifft( v_p2B , 1 , 0 ) , gf.ifft( v_p2C , 1 , 0 )
+    if value_or_poly :
+        v_alpha.extend( gf.fft(f_alpha,1,pad_len) )
+        v_p2A.extend( gf.fft(p2A,1,pad_len) )
+        v_p2B.extend( gf.fft(p2B,1,pad_len) )
+        v_p2C.extend( gf.fft(p2C,1,pad_len) )
+    ed = time.time()
+    dump( "time:" , format(ed-st) , "secs" )
+    dump( "return v_alpha, v_p2A, v_p2B, b_p2C" if value_or_poly else "return f_alpha, p2A , p2B , p2C" )
+    return (v_alpha , v_p2A , v_p2B , v_p2C ) if value_or_poly else ( f_alpha, p2A , p2B , p2C )
+
+
+def lincheck_step2( v_alpha , v_p2A , v_p2B , v_p2C ,  p_vec_z , v_Az , v_Bz , v_Cz ,
+              s1 , s2 , s3 , r_lincheck , pad_len , verbose = 1 ) :
+    if 1 == verbose : dump = print
+    else : dump = _dummy
+
+    dump( f"lin-check step 2. poly muls and /Z_{_log2(pad_len)}" )
+    st = time.time()
+    v_sA = [ gf.mul(v_Az[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2A[i]) for i in range(2*pad_len) ]
+    v_sB = [ gf.mul(v_Bz[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2B[i]) for i in range(2*pad_len) ]
+    v_sC = [ gf.mul(v_Cz[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2C[i]) for i in range(2*pad_len) ]
+    f_sA = gf.ifft( v_sA , 1 , 0 )
+    f_sB = gf.ifft( v_sB , 1 , 0 )
+    f_sC = gf.ifft( v_sC , 1 , 0 )
+    g = [ gf.mul(s1,f_sA[i])^gf.mul(s2,f_sB[i])^gf.mul(s3,f_sC[i])^r_lincheck[i] for i in range(pad_len) ]
+    h = [ gf.mul(s1,f_sA[i])^gf.mul(s2,f_sB[i])^gf.mul(s3,f_sC[i])^r_lincheck[i] for i in range(pad_len,2*pad_len) ]
+    ed = time.time()
+    dump( "time:" , format(ed-st) , "secs" )
+    dump( f"g: [{pad_len}] ...[{pad_len-2}:{pad_len}]", g[pad_len-2:] )
+    dump( f"h: [{pad_len}] ...[{pad_len-2}:{pad_len}]", h[pad_len-2:] )
+
+    return g , h
+#endif
+
+static
+void lin_check(gfvec_t *g, gfvec_t *h, const uint64_t *chals , gfvec_t v_Az, gfvec_t v_Bz, gfvec_t v_Cz, gfvec_t v_z_pad , gfvec_t r_lincheck )
+{
+    const uint64_t *alpha = chals;
+    const uint64_t *s1 = chals + 1*GF_NUMU64;
+    const uint64_t *s2 = chals + 2*GF_NUMU64;
+    const uint64_t *s3 = chals + 3*GF_NUMU64;
+
+    gfvec_t temp2;  gfvec_alloc(&temp2, 2*R1CS_POLYLEN);
+    gfvec_t temp = gfvec_slice(temp2,0,R1CS_POLYLEN);
+
+    // generate v_alpha
+    gfvec_t v_alpha;  gfvec_alloc(&v_alpha, R1CS_POLYLEN*2);
+    gfvec_set_zero( gfvec_slice(v_alpha,0,1) );   v_alpha.vec[0][0]=1;
+    gfvec_from_u64vec(gfvec_slice(v_alpha,1,1),alpha);
+    for(unsigned i=2;i<R1CS_NROW;i++) gfvec_mul_scalar2(gfvec_slice(v_alpha,i,1),gfvec_slice(v_alpha,i-1,1),alpha);
+    gfvec_set_zero( gfvec_slice(v_alpha,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) );
+    // extend length from R1CS_POLYLEN to 2*R1CS_POLYLEN
+    gfvec_ifft(temp,gfvec_slice(v_alpha,0,R1CS_POLYLEN),0);
+    gfvec_fft(gfvec_slice(v_alpha,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
+    // generate v_p2A
+    gfvec_t v_p2A;  gfvec_alloc(&v_p2A, R1CS_POLYLEN*2);
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2A.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2A,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(temp,gfvec_slice(v_p2A,0,R1CS_POLYLEN),0);
+    gfvec_fft(gfvec_slice(v_p2A,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
+    // generate v_p2B
+    gfvec_t v_p2B;  gfvec_alloc(&v_p2B, R1CS_POLYLEN*2);
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2B,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(temp,gfvec_slice(v_p2B,0,R1CS_POLYLEN),0);
+    gfvec_fft(gfvec_slice(v_p2B,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
+    // generate v_p2C
+    gfvec_t v_p2C;  gfvec_alloc(&v_p2C, R1CS_POLYLEN*2);
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2C,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(temp,gfvec_slice(v_p2C,0,R1CS_POLYLEN),0);
+    gfvec_fft(gfvec_slice(v_p2C,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
+    
+    //dump( f"lin-check step 2. poly muls and /Z_{_log2(pad_len)}" )
+    //v_sA = [ gf.mul(v_Az[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2A[i]) for i in range(2*pad_len) ]
+    //v_sB = [ gf.mul(v_Bz[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2B[i]) for i in range(2*pad_len) ]
+    //v_sC = [ gf.mul(v_Cz[i],v_alpha[i]) ^ gf.mul(p_vec_z[i],v_p2C[i]) for i in range(2*pad_len) ]
+    //f_sA = gf.ifft( v_sA , 1 , 0 )
+    //f_sB = gf.ifft( v_sB , 1 , 0 )
+    //f_sC = gf.ifft( v_sC , 1 , 0 )
+    //g = [ gf.mul(s1,f_sA[i])^gf.mul(s2,f_sB[i])^gf.mul(s3,f_sC[i])^r_lincheck[i] for i in range(pad_len) ]
+    //h = [ gf.mul(s1,f_sA[i])^gf.mul(s2,f_sB[i])^gf.mul(s3,f_sC[i])^r_lincheck[i] for i in range(pad_len,2*pad_len) ]
+    gfvec_mul( temp2 , v_Az , v_alpha );
+    gfvec_mul( v_p2A , v_p2A , v_z_pad );
+    gfvec_add( v_p2A , v_p2A , temp2 );
+    gfvec_mul_scalar( v_p2A , s1 );
+
+    gfvec_mul( temp2 , v_Bz , v_alpha );
+    gfvec_mul( v_p2B , v_p2B , v_z_pad );
+    gfvec_add( v_p2B , v_p2B , temp2 );
+    gfvec_mul_scalar( v_p2B , s2 );
+
+    gfvec_mul( temp2 , v_Cz , v_alpha );
+    gfvec_mul( v_p2C , v_p2C , v_z_pad );
+    gfvec_add( v_p2C , v_p2C , temp2 );
+    gfvec_mul_scalar( v_p2C , s3 );
+
+    gfvec_add( v_p2A , v_p2A , v_p2B );
+    gfvec_add( v_p2A , v_p2A , v_p2C );
+    gfvec_ifft( temp2 , v_p2A , 0 );
+
+    gfvec_alloc(g, R1CS_POLYLEN);
+    gfvec_alloc(h, R1CS_POLYLEN);
+    gfvec_add( *g, gfvec_slice(temp2,0,R1CS_POLYLEN) , gfvec_slice(r_lincheck,0,R1CS_POLYLEN) );
+    gfvec_add( *h, gfvec_slice(temp2,R1CS_POLYLEN,R1CS_POLYLEN) , gfvec_slice(r_lincheck,R1CS_POLYLEN,R1CS_POLYLEN) );
+
+    // check if g[-1] == 0
+
+    gfvec_free(&v_p2A);
+    gfvec_free(&v_p2B);
+    gfvec_free(&v_p2C);
+    gfvec_free(&v_alpha);
+    gfvec_free(&temp2);
 }
 
 
@@ -246,12 +377,20 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
     memcpy( proof , first_mt.root , PREON_HASH_LEN );  proof += PREON_HASH_LEN;
     hash_2mesg(h_state,h_state,PREON_HASH_LEN,first_mt.root,PREON_HASH_LEN);
 
-dump_u8("mt root\n",first_mt.root,PREON_HASH_LEN);
 dump_u8("h_state\n",h_state,PREON_HASH_LEN);
 
+    // challenges for lin-check
+    uint8_t bytes[2] = {1,0};
+    uint64_t chals[GF_NUMU64*4+PREON_HASH_LEN];
+    for(int i=0;i<4;i++) {
+        bytes[1] = i+1;
+        hash_2mesg((uint8_t*)&chals[GF_NUMU64*i], h_state,PREON_HASH_LEN, bytes, 2 );
+    }
+    hash_1mesg(h_state, (uint8_t*)chals , GF_BYTES*4 );
 
     // lin-check and second commit
-
+    gfvec_t h, g;
+    lin_check( &g , &h , chals , v_Az , v_Bz , v_Cz , v_z_pad , r_lincheck );
 
     // generate the polynomial for ldt
 
@@ -260,6 +399,9 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
 
 
     // clean
+    gfvec_free(&g);
+    gfvec_free(&h);
+
     gfvec_free(&first_mesgs);
     mt_free(&first_mt);
 
