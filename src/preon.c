@@ -65,14 +65,14 @@ int preon_sign( uint8_t * sig , const uint8_t * sk , const uint8_t * mesg , unsi
 
 bool preon_verify( const uint8_t * sig , const uint8_t * pk , const uint8_t * mesg , unsigned len_mesg )
 {
-    uint8_t r1cs_z[R1CS_Z_LEN];
-    r1cs_get_vec_1v(r1cs_z , pk , pk+16 );
+    uint8_t r1cs_1v[R1CS_WITNESS_IDX];
+    r1cs_get_vec_1v(r1cs_1v , pk , pk+16 );
 
     uint8_t h_state[PREON_HASH_LEN];
     uint8_t bytes[1] = {1};
     hash_2mesg(h_state,bytes,1,mesg,len_mesg);
 
-    return aurora_verify_proof(sig,r1cs_z,h_state);
+    return aurora_verify_proof(sig,r1cs_1v,h_state);
 }
 
 

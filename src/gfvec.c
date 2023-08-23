@@ -109,9 +109,9 @@ void gfvec_fft( gfvec_t dest, const gfvec_t src , uint64_t shift )
 
 void gfvec_ifft( gfvec_t dest, const gfvec_t src , uint64_t shift )
 {
-    if(0!=(src.len&(src.len-1))) { printf("src fft size != 2^??\n"); abort(); }
-    if(0!=(dest.len&(dest.len-1))) { printf("dest fft size != 2^??\n"); abort(); }
-    if(0==src.len) { printf("src fft([0])\n"); abort(); }
+    if(0!=(src.len&(src.len-1))) { printf("src ifft size != 2^??\n"); abort(); }
+    if(0!=(dest.len&(dest.len-1))) { printf("dest ifft size != 2^??\n"); abort(); }
+    if(0==src.len) { printf("src ifft([0])\n"); abort(); }
 
     unsigned log_plen = (unsigned) _log2(src.len);
     for(int k=0;k<GF_EXT_DEG;k++) {

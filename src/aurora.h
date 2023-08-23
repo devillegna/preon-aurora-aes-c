@@ -58,7 +58,7 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
 
 #include "stdbool.h"
 
-bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * h_state );
+bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_1v , const uint8_t * h_state );
 
 
 

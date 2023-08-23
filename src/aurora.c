@@ -312,7 +312,7 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
     uint32_t queries[FRI_N_QUERY];
     frildt_gen_proof_core(proof, queries, tmp_rscode, h_state);
     proof += FRI_CORE_LEN;
-//printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
+printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
     // open queries
     mt_batchopen( proof , first_mt , (uint8_t*)first_mesgs.sto , AURORA_MT_MESG0_LEN , queries , FRI_N_QUERY );
     proof += FRI_N_QUERY*MT_AUTHPATH_LEN( AURORA_MT_MESG0_LEN,AURORA_MT_LOGMESG);
@@ -410,9 +410,52 @@ def verify_proof( proof , R1CS , h_state , RS_rho = 8 , RS_shift=1<<63, verbose 
     return True
 #endif
 
+static
+void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha , const uint8_t * r1cs_1v )
+{
+    gfvec_t temp;  gfvec_alloc(&temp, R1CS_POLYLEN);
+    // generate f_1v
+    gfvec_from_u8gfvec( gfvec_slice(temp,0,R1CS_WITNESS_IDX) , r1cs_1v );
+    gfvec_ifft(f_1v,gfvec_slice(temp,0,R1CS_WITNESS_IDX), 0);
+
+    // generate v_alpha
+    gfvec_t v_alpha; gfvec_alloc(&v_alpha, R1CS_POLYLEN);
+    gfvec_set_zero( gfvec_slice(v_alpha,0,1) );   v_alpha.vec[0][0]=1;
+    gfvec_from_u64vec(gfvec_slice(v_alpha,1,1),alpha);
+    for(unsigned i=2;i<R1CS_NROW;i++) gfvec_mul_scalar2(gfvec_slice(v_alpha,i,1),gfvec_slice(v_alpha,i-1,1),alpha);
+    gfvec_set_zero( gfvec_slice(v_alpha,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) );
+    gfvec_ifft(f_alpha,gfvec_slice(v_alpha,0,R1CS_POLYLEN),0);
+    // generate v_p2A
+    gfvec_t v_p2A = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2A.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2A,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2A,gfvec_slice(v_p2A,0,R1CS_POLYLEN),0);
+    // generate v_p2B
+    gfvec_t v_p2B = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matB_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2B,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2B,gfvec_slice(v_p2B,0,R1CS_POLYLEN),0);
+    // generate v_p2C
+    gfvec_t v_p2C = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matC_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2C,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2C,gfvec_slice(v_p2C,0,R1CS_POLYLEN),0);
+
+    gfvec_free(&v_alpha);
+    gfvec_free(&temp);
+}
+
+
+static
+void recover_v0_mesgs( uint8_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * ss , const uint64_t * y, const uint32_t * queries )
+{
+
+
+}
+
 #include "string.h"
 
-bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_z , const uint8_t * _h_state )
+bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_1v , const uint8_t * _h_state )
 {
     aurora_proof_t prf;  aurora_proof_setptr(&prf,proof);
 
@@ -445,10 +488,30 @@ bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_z , const
     uint64_t xi[FRI_GF_NUMU64*FRI_CORE_N_XI];
     //xi, queries = fri.ldt_recover_challenges(_poly_len,h_state,ldt_commits,ldt_d1poly,Nq, RS_rho, verbose=0 )
     frildt_recover_challenges( queries , d1poly , xi , h_state , prf.fri_proof );
+printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
 
     if( !mt_batchverify(prf.commit0,prf.open_mesgs0,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
     if( !mt_batchverify(prf.commit1,prf.open_mesgs1,AURORA_MT_MESG1_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
 
+    // frildt_verify_commit_open()
+
+    gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
+    gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
+    gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
+    gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
+    gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
+
+    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,ch,r1cs_1v);
+    uint64_t v0_opened[2*GF_NUMU64*FRI_N_QUERY];
+    recover_v0_mesgs( (uint8_t *)v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , f_1v , f_alpha , f_p2A , f_p2B , f_p2C , &ch[GF_NUMU64] , y, queries );
+
+    gfvec_free(&f_1v);
+    gfvec_free(&f_alpha);
+    gfvec_free(&f_p2A);
+    gfvec_free(&f_p2B);
+    gfvec_free(&f_p2C);
+
+    // frildt_check_linear_relation()
 
     return true;
 }
