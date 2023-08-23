@@ -151,13 +151,13 @@ void lin_check(gfvec_t *g, gfvec_t *h, const uint64_t *chals , gfvec_t v_Az, gfv
     gfvec_fft(gfvec_slice(v_p2A,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
     // generate v_p2B
     gfvec_t v_p2B;  gfvec_alloc(&v_p2B, R1CS_POLYLEN*2);
-    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matB_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
     gfvec_set_zero( gfvec_slice(v_p2B,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
     gfvec_ifft(temp,gfvec_slice(v_p2B,0,R1CS_POLYLEN),0);
     gfvec_fft(gfvec_slice(v_p2B,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
     // generate v_p2C
     gfvec_t v_p2C;  gfvec_alloc(&v_p2C, R1CS_POLYLEN*2);
-    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matC_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
     gfvec_set_zero( gfvec_slice(v_p2C,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
     gfvec_ifft(temp,gfvec_slice(v_p2C,0,R1CS_POLYLEN),0);
     gfvec_fft(gfvec_slice(v_p2C,R1CS_POLYLEN,R1CS_POLYLEN),temp,R1CS_POLYLEN);
@@ -174,16 +174,19 @@ void lin_check(gfvec_t *g, gfvec_t *h, const uint64_t *chals , gfvec_t v_Az, gfv
     gfvec_mul( temp2 , v_Az , v_alpha );
     gfvec_mul( v_p2A , v_p2A , v_z_pad );
     gfvec_add( v_p2A , v_p2A , temp2 );
+printf("v_sA[0]: %llx %llx %llx\n", v_p2A.vec[0][0], v_p2A.vec[0][1], v_p2A.vec[0][2]);
     gfvec_mul_scalar( v_p2A , s1 );
 
     gfvec_mul( temp2 , v_Bz , v_alpha );
     gfvec_mul( v_p2B , v_p2B , v_z_pad );
     gfvec_add( v_p2B , v_p2B , temp2 );
+printf("v_sB[0]: %llx %llx %llx\n", v_p2B.vec[0][0], v_p2B.vec[0][1], v_p2B.vec[0][2]);
     gfvec_mul_scalar( v_p2B , s2 );
 
     gfvec_mul( temp2 , v_Cz , v_alpha );
     gfvec_mul( v_p2C , v_p2C , v_z_pad );
     gfvec_add( v_p2C , v_p2C , temp2 );
+printf("v_sC[0]: %llx %llx %llx\n", v_p2C.vec[0][0], v_p2C.vec[0][1], v_p2C.vec[0][2]);
     gfvec_mul_scalar( v_p2C , s3 );
 
     gfvec_add( v_p2A , v_p2A , v_p2B );
@@ -196,6 +199,9 @@ void lin_check(gfvec_t *g, gfvec_t *h, const uint64_t *chals , gfvec_t v_Az, gfv
     gfvec_add( *h, gfvec_slice(temp2,R1CS_POLYLEN,R1CS_POLYLEN) , gfvec_slice(r_lincheck,R1CS_POLYLEN,R1CS_POLYLEN) );
 
     // check if g[-1] == 0
+
+printf("g[4094,4095]: %llx %llx %llx, %llx %llx %llx\n",g->vec[0][4094],g->vec[1][4094],g->vec[2][4094],g->vec[0][4095],g->vec[1][4095],g->vec[2][4095]);
+printf("h[4094,4095]: %llx %llx %llx, %llx %llx %llx\n",h->vec[0][4094],h->vec[1][4094],h->vec[2][4094],h->vec[0][4095],h->vec[1][4095],h->vec[2][4095]);
 
     gfvec_free(&v_p2A);
     gfvec_free(&v_p2B);
@@ -229,6 +235,9 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
     gfvec_lincheck_reduce( gfvec_slice(v_r_lincheck,0,pad_len) );
     //r_lincheck = gf.ifft(v_r_lincheck, 1 , 0 )
     gfvec_ifft(r_lincheck, v_r_lincheck , 0 );
+printf("r_lincheck[4094]: %llx %llx %llx\n",r_lincheck.vec[0][4094],r_lincheck.vec[1][4094],r_lincheck.vec[2][4094]);
+printf("r_lincheck[4095]: %llx %llx %llx\n",r_lincheck.vec[0][4095],r_lincheck.vec[1][4095],r_lincheck.vec[2][4095]);
+printf("r_lincheck[4096]: %llx %llx %llx\n",r_lincheck.vec[0][4096],r_lincheck.vec[1][4096],r_lincheck.vec[2][4096]);
 
     // first commit  // commit_polys( [f_w , f_Az , f_Bz , f_Cz , r_lincheck , r_ldt ]
     gfvec_t first_mesgs;  gfvec_alloc(&first_mesgs,AURORA_MT_MESG0_LEN*AURORA_MT_N_MESG/GF_BYTES);
@@ -238,6 +247,7 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
     hash_2mesg(h_state,h_state,PREON_HASH_LEN,first_mt.root,PREON_HASH_LEN);
 
 dump_u8("h_state\n",h_state,PREON_HASH_LEN);
+dump_u8("commit1\n",first_mt.root,PREON_HASH_LEN);
 
     // challenges
     uint8_t bytes[2] = {1,0};
@@ -247,7 +257,6 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
         hash_2mesg((uint8_t*)&chals[GF_NUMU64*i], h_state,PREON_HASH_LEN, bytes, 2 );
     }
     hash_1mesg(h_state, (uint8_t*)chals , GF_BYTES*4 );
-dump_u8("h_state\n",h_state,PREON_HASH_LEN);
 
     // lin-check and second commit
     gfvec_t h, g;
@@ -261,6 +270,9 @@ dump_u8("h_state\n",h_state,PREON_HASH_LEN);
     mt_commit(second_mt,(uint8_t*)second_mesgs.sto,AURORA_MT_MESG1_LEN,AURORA_MT_N_MESG);
     memcpy( proof , second_mt.root , PREON_HASH_LEN );  proof += PREON_HASH_LEN;
 
+printf( "lincheck: rs(h)[0]: %llx %llx %llx \n", second_mesgs.sto[0] , second_mesgs.sto[0] , second_mesgs.sto[0] );
+
+dump_u8("h_state\n",h_state,PREON_HASH_LEN);
 dump_u8("commit2\n",second_mt.root,PREON_HASH_LEN);
 
     // generate the polynomial for ldt
@@ -314,10 +326,13 @@ dump_u8("y[0]\n", y , 8 ); printf("\n");
     gfvec_add(gfvec_slice(r_ldt,R1CS_POLYLEN,R1CS_POLYLEN),gfvec_slice(r_ldt,R1CS_POLYLEN,R1CS_POLYLEN),g_raise);
 
     gfvec_fft(tmp_rscode,r_ldt,RS_SHIFT);
+
+printf("v0[0]: %llx %llx %llx\n", tmp_rscode.vec[0][0], tmp_rscode.vec[0][1], tmp_rscode.vec[0][2]);
+
     uint32_t queries[FRI_N_QUERY];
     frildt_gen_proof_core(proof, queries, tmp_rscode, h_state);
     proof += FRI_CORE_LEN;
-dump_u8("queries[0]\n", queries , 4 ); printf("\n");
+printf(":queires: %d, ...\n", queries[0]);
     // open queries
     mt_batchopen( proof , first_mt , (uint8_t*)first_mesgs.sto , AURORA_MT_MESG0_LEN , queries , FRI_N_QUERY );
     proof += FRI_N_QUERY*MT_AUTHPATH_LEN( AURORA_MT_MESG0_LEN,AURORA_MT_LOGMESG);
