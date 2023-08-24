@@ -447,8 +447,23 @@ void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A 
 
 
 static
-void recover_v0_mesgs( uint8_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * ss , const uint64_t * y, const uint32_t * queries )
+void recover_v0_mesgs( uint8_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , const uint8_t * r1cs_1v, const uint64_t * alpha_n_s , const uint64_t * y, const uint32_t * queries )
 {
+
+    gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
+    gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
+    gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
+    gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
+    gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
+
+    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,alpha_n_s,r1cs_1v);
+
+    gfvec_free(&f_1v);
+    gfvec_free(&f_alpha);
+    gfvec_free(&f_p2A);
+    gfvec_free(&f_p2B);
+    gfvec_free(&f_p2C);
+
 
 
 }
@@ -493,24 +508,10 @@ printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], que
     if( !mt_batchverify(prf.commit0,prf.open_mesgs0,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
     if( !mt_batchverify(prf.commit1,prf.open_mesgs1,AURORA_MT_MESG1_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
 
-    // frildt_verify_commit_open()
-
-    gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
-    gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
-    gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
-    gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
-    gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
-
-    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,ch,r1cs_1v);
     uint64_t v0_opened[2*GF_NUMU64*FRI_N_QUERY];
-    recover_v0_mesgs( (uint8_t *)v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , f_1v , f_alpha , f_p2A , f_p2B , f_p2C , &ch[GF_NUMU64] , y, queries );
+    recover_v0_mesgs( (uint8_t *)v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , r1cs_1v, ch , y, queries );
 
-    gfvec_free(&f_1v);
-    gfvec_free(&f_alpha);
-    gfvec_free(&f_p2A);
-    gfvec_free(&f_p2B);
-    gfvec_free(&f_p2C);
-
+    // frildt_verify_commit_open()
     // frildt_check_linear_relation()
 
     return true;
