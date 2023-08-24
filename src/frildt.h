@@ -63,6 +63,11 @@ void frildt_setptr_openmesgs( const uint8_t *open_mesgs[FRI_CORE_N_COMMITS] , co
 }
 
 static inline
+const uint8_t * frildt_proof_get_open_mesgs( const uint8_t * prf_core ) {
+    return prf_core + (FRI_CORE_N_COMMITS*FRI_HASH_LEN) + 2*FRI_GF_BYTES;
+}
+
+static inline
 size_t frildt_proof_setptr( frildt_proof_t * prf_ptr , const uint8_t * prf )
 {
     const uint8_t * backup = prf;

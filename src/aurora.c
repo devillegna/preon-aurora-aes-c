@@ -312,7 +312,7 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
     uint32_t queries[FRI_N_QUERY];
     frildt_gen_proof_core(proof, queries, tmp_rscode, h_state);
     proof += FRI_CORE_LEN;
-printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
+//printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
     // open queries
     mt_batchopen( proof , first_mt , (uint8_t*)first_mesgs.sto , AURORA_MT_MESG0_LEN , queries , FRI_N_QUERY );
     proof += FRI_N_QUERY*MT_AUTHPATH_LEN( AURORA_MT_MESG0_LEN,AURORA_MT_LOGMESG);
@@ -348,67 +348,8 @@ printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], que
 
 
 
+//////////////////////////// code for verification  /////////////////////////////////////
 
-#if 0
-def verify_proof( proof , R1CS , h_state , RS_rho = 8 , RS_shift=1<<63, verbose = 1 ) :
-    if 1 == verbose : dump = print
-    else : dump = _dummy
-
-    ## process R1CS
-    mat_A , mat_B , mat_C , vec_1v , witness_idx = R1CS
-    n = mat_A.n_cols
-    m = mat_A.n_rows
-    pad_len = _pad_len( max(n,m) )
-    dump( f"m(#rows): {m} x n: {n}, witness_idx: {witness_idx}, pad_len: {pad_len}" )
-
-    inst_dim = _log2(witness_idx)
-    r1cs_dim = _log2(pad_len)
-
-    ## unpack proof
-    rt0 = proof[0]
-    rt1 = proof[1]
-    _poly_len = 2*pad_len
-    ldt_n_commits = fri.ldt_n_commit( _poly_len )
-    ldt_commits     = proof[2:2+ldt_n_commits]
-    ldt_d1poly      = proof[2+ldt_n_commits]
-    ldt_open_mesgs  = proof[3+ldt_n_commits:3+ldt_n_commits+ldt_n_commits]
-
-    open_mesgs0 = proof[3+2*ldt_n_commits]
-    open_mesgs1 = proof[4+2*ldt_n_commits]
-
-    ## recover challenges
-    dump( "recover challenges" )
-    h_state = H.gen( h_state , rt0 )
-    chals = [ H.gen( h_state , bytes([1,i]) )[:gf.GF_BSIZE] for i in range(1,5) ]
-    alpha, s1, s2, s3 = gf.from_bytes(chals[0]), gf.from_bytes(chals[1]), gf.from_bytes(chals[2]), gf.from_bytes(chals[3])
-    h_state = H.gen( *chals )
-    y = [ gf.from_bytes( H.gen( h_state , bytes([2,i]) )[:gf.GF_BSIZE] ) for i in range(1,10) ]
-    Nq = len(open_mesgs0)
-    xi, queries = fri.ldt_recover_challenges(_poly_len,h_state,ldt_commits,ldt_d1poly,Nq, RS_rho, verbose=0 )
-
-    dump( "check if commits are opened correctly" )
-    if not mt.batchverify(queries,rt0,open_mesgs0) :
-        dump( "open0 fails" )
-        return False
-    if not mt.batchverify(queries,rt1,open_mesgs1) :
-        dump( "open1 fails" )
-        return False
-    dump( "all passed" )
-
-    rs_codewords = codewords_of_public_polynomials( alpha , vec_1v , mat_A , mat_B , mat_C , pad_len , RS_rho , RS_shift , verbose )
-
-    dump( "recover first opened commit of ldt from the virtual oracle of aurora" )
-    ldt_1st_mesgs = [ values_from_virtual_oracle( _idx , open_mesgs0[k][0] , open_mesgs1[k][0] , (s1,s2,s3)
-                                 , y , rs_codewords , inst_dim , r1cs_dim , RS_shift ) for k,_idx in enumerate(queries) ]
-
-    dump("verify ldt")
-    ldt_r = fri.ldt_verify_proof(ldt_commits,ldt_d1poly,ldt_1st_mesgs,ldt_open_mesgs,xi,queries,RS_shift,verbose=0)
-    dump( ldt_r )
-    if not ldt_r : return False
-
-    dump("all passed") 
-    return True
-#endif
 
 static
 void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha , const uint8_t * r1cs_1v )
@@ -503,16 +444,18 @@ bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_1v , cons
     uint64_t xi[FRI_GF_NUMU64*FRI_CORE_N_XI];
     //xi, queries = fri.ldt_recover_challenges(_poly_len,h_state,ldt_commits,ldt_d1poly,Nq, RS_rho, verbose=0 )
     frildt_recover_challenges( queries , d1poly , xi , h_state , prf.fri_proof );
-printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
+//printf(":queires: %d, %d, %d, %d,...\n", queries[0], queries[1], queries[2], queries[3]);
 
     if( !mt_batchverify(prf.commit0,prf.open_mesgs0,AURORA_MT_MESG0_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
     if( !mt_batchverify(prf.commit1,prf.open_mesgs1,AURORA_MT_MESG1_LEN,AURORA_MT_N_MESG,queries,PREON_N_QUERY) ) return false;
 
+    const uint8_t * fri_open_mesgs = frildt_proof_get_open_mesgs(prf.fri_proof);
+
+    if( !frildt_verify_commit_open(prf.fri_proof,fri_open_mesgs,queries)) return false;
+
     uint64_t v0_opened[2*GF_NUMU64*FRI_N_QUERY];
     recover_v0_mesgs( (uint8_t *)v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , r1cs_1v, ch , y, queries );
 
-    // frildt_verify_commit_open()
-    // frildt_check_linear_relation()
-
-    return true;
+    //return true;
+    return frildt_verify_linear_relation( (uint8_t*)v0_opened , fri_open_mesgs , (uint8_t*)d1poly , xi , queries);
 }
