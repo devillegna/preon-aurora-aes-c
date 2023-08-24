@@ -119,6 +119,8 @@ void gfvec_mul_scalar( gfvec_t vec, const uint64_t * gf );
 
 void gfvec_mul_scalar2( gfvec_t c, gfvec_t a, const uint64_t * b );
 
+static inline void gfvec_mul_scalar3( gfvec_t vec, uint64_t b ) { for(unsigned j=0;j<GF_EXT_DEG;j++) { for(unsigned i=0;i<vec.len;i++) vec.vec[j][0] = gf264_mul(vec.vec[j][0],b); } }
+
 void gfvec_frildt_reduce( gfvec_t *polyx2, const uint64_t *xi );
 
 void gfvec_fft( gfvec_t dest, const gfvec_t src , uint64_t shift );

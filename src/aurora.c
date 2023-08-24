@@ -351,63 +351,10 @@ int aurora_generate_proof( uint8_t * proof , const uint8_t * r1cs_z , const uint
 //////////////////////////// code for verification  /////////////////////////////////////
 
 
-static
-void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha , const uint8_t * r1cs_1v )
-{
-    gfvec_t temp;  gfvec_alloc(&temp, R1CS_POLYLEN);
-    // generate f_1v
-    gfvec_from_u8gfvec( gfvec_slice(temp,0,R1CS_WITNESS_IDX) , r1cs_1v );
-    gfvec_ifft(f_1v,gfvec_slice(temp,0,R1CS_WITNESS_IDX), 0);
-
-    // generate v_alpha
-    gfvec_t v_alpha; gfvec_alloc(&v_alpha, R1CS_POLYLEN);
-    gfvec_set_zero( gfvec_slice(v_alpha,0,1) );   v_alpha.vec[0][0]=1;
-    gfvec_from_u64vec(gfvec_slice(v_alpha,1,1),alpha);
-    for(unsigned i=2;i<R1CS_NROW;i++) gfvec_mul_scalar2(gfvec_slice(v_alpha,i,1),gfvec_slice(v_alpha,i-1,1),alpha);
-    gfvec_set_zero( gfvec_slice(v_alpha,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) );
-    gfvec_ifft(f_alpha,gfvec_slice(v_alpha,0,R1CS_POLYLEN),0);
-    // generate v_p2A
-    gfvec_t v_p2A = temp;
-    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2A.vec[i],v_alpha.vec[i]); }
-    gfvec_set_zero( gfvec_slice(v_p2A,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
-    gfvec_ifft(f_p2A,gfvec_slice(v_p2A,0,R1CS_POLYLEN),0);
-    // generate v_p2B
-    gfvec_t v_p2B = temp;
-    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matB_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
-    gfvec_set_zero( gfvec_slice(v_p2B,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
-    gfvec_ifft(f_p2B,gfvec_slice(v_p2B,0,R1CS_POLYLEN),0);
-    // generate v_p2C
-    gfvec_t v_p2C = temp;
-    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matC_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
-    gfvec_set_zero( gfvec_slice(v_p2C,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
-    gfvec_ifft(f_p2C,gfvec_slice(v_p2C,0,R1CS_POLYLEN),0);
-
-    gfvec_free(&v_alpha);
-    gfvec_free(&temp);
-}
-
 
 static
-void recover_v0_mesgs( uint8_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , const uint8_t * r1cs_1v, const uint64_t * alpha_n_s , const uint64_t * y, const uint32_t * queries )
-{
+void recover_v0_mesgs( uint64_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , const uint8_t * r1cs_1v, const uint64_t * alpha_n_s , const uint64_t * y, const uint32_t * queries );
 
-    gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
-    gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
-    gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
-    gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
-    gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
-
-    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,alpha_n_s,r1cs_1v);
-
-    gfvec_free(&f_1v);
-    gfvec_free(&f_alpha);
-    gfvec_free(&f_p2A);
-    gfvec_free(&f_p2B);
-    gfvec_free(&f_p2C);
-
-
-
-}
 
 #include "string.h"
 
@@ -454,8 +401,167 @@ bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_1v , cons
     if( !frildt_verify_commit_open(prf.fri_proof,fri_open_mesgs,queries)) return false;
 
     uint64_t v0_opened[2*GF_NUMU64*FRI_N_QUERY];
-    recover_v0_mesgs( (uint8_t *)v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , r1cs_1v, ch , y, queries );
+    recover_v0_mesgs( v0_opened , prf.open_mesgs0 , prf.open_mesgs1 , r1cs_1v, ch , y, queries );
 
     //return true;
     return frildt_verify_linear_relation( (uint8_t*)v0_opened , fri_open_mesgs , (uint8_t*)d1poly , xi , queries);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+static
+void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha , const uint8_t * r1cs_1v )
+{
+    gfvec_t temp;  gfvec_alloc(&temp, R1CS_POLYLEN);
+    // generate f_1v
+    gfvec_from_u8gfvec( gfvec_slice(temp,0,R1CS_WITNESS_IDX) , r1cs_1v );
+    gfvec_ifft(f_1v,gfvec_slice(temp,0,R1CS_WITNESS_IDX), 0);
+
+    // generate v_alpha
+    gfvec_t v_alpha; gfvec_alloc(&v_alpha, R1CS_POLYLEN);
+    gfvec_set_zero( gfvec_slice(v_alpha,0,1) );   v_alpha.vec[0][0]=1;
+    gfvec_from_u64vec(gfvec_slice(v_alpha,1,1),alpha);
+    for(unsigned i=2;i<R1CS_NROW;i++) gfvec_mul_scalar2(gfvec_slice(v_alpha,i,1),gfvec_slice(v_alpha,i-1,1),alpha);
+    gfvec_set_zero( gfvec_slice(v_alpha,R1CS_NROW,R1CS_PADLEN-R1CS_NROW) );
+    gfvec_ifft(f_alpha,gfvec_slice(v_alpha,0,R1CS_POLYLEN),0);
+    // generate v_p2A
+    gfvec_t v_p2A = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matA_colvec_dot(v_p2A.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2A,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2A,gfvec_slice(v_p2A,0,R1CS_POLYLEN),0);
+    // generate v_p2B
+    gfvec_t v_p2B = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matB_colvec_dot(v_p2B.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2B,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2B,gfvec_slice(v_p2B,0,R1CS_POLYLEN),0);
+    // generate v_p2C
+    gfvec_t v_p2C = temp;
+    for(unsigned i=0;i<GF_EXT_DEG;i++) { r1cs_matC_colvec_dot(v_p2C.vec[i],v_alpha.vec[i]); }
+    gfvec_set_zero( gfvec_slice(v_p2C,R1CS_NCOL,R1CS_PADLEN-R1CS_NCOL) );
+    gfvec_ifft(f_p2C,gfvec_slice(v_p2C,0,R1CS_POLYLEN),0);
+
+    gfvec_free(&v_alpha);
+    gfvec_free(&temp);
+}
+
+
+#include "gf264.h"
+#include "cantor_to_gf264.h"
+
+static
+void recover_v0_mesgs( uint64_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , const uint8_t * r1cs_1v, const uint64_t * alpha_n_s , const uint64_t * y, const uint32_t * queries )
+{
+
+    gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
+    gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
+    gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
+    gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
+    gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
+
+    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,alpha_n_s,r1cs_1v);
+
+    //rs_f_1v , rs_f_alpha , rs_f_p2A, rs_f_p2B, rs_f_p2C = rs_codewords
+    gfvec_t rs_f_1v;    gfvec_alloc(&rs_f_1v, RS_RHO*AURORA_POLYLEN);    gfvec_fft(rs_f_1v,f_1v,RS_SHIFT);
+    gfvec_t rs_f_alpha; gfvec_alloc(&rs_f_alpha, RS_RHO*AURORA_POLYLEN); gfvec_fft(rs_f_alpha,f_alpha,RS_SHIFT);
+    gfvec_t rs_f_p2A;   gfvec_alloc(&rs_f_p2A, RS_RHO*AURORA_POLYLEN);   gfvec_fft(rs_f_p2A,f_p2A,RS_SHIFT);
+    gfvec_t rs_f_p2B;   gfvec_alloc(&rs_f_p2B, RS_RHO*AURORA_POLYLEN);   gfvec_fft(rs_f_p2B,f_p2B,RS_SHIFT);
+    gfvec_t rs_f_p2C;   gfvec_alloc(&rs_f_p2C, RS_RHO*AURORA_POLYLEN);   gfvec_fft(rs_f_p2C,f_p2C,RS_SHIFT);
+
+    gfvec_free(&f_1v);
+    gfvec_free(&f_alpha);
+    gfvec_free(&f_p2A);
+    gfvec_free(&f_p2B);
+    gfvec_free(&f_p2C);
+
+    //s1 , s2, s3 = lincheck_s
+    const uint64_t * s1 = alpha_n_s[1*GF_NUMU64];
+    const uint64_t * s2 = alpha_n_s[2*GF_NUMU64];
+    const uint64_t * s3 = alpha_n_s[3*GF_NUMU64];
+
+    //vv0 = [ gf.from_bytes_x2(aurora_open0[i*gf.GF_BSIZE*2:i*gf.GF_BSIZE*2+gf.GF_BSIZE*2]) for i in range(6) ]
+    const uint8_t * vv0[PREON_N_QUERY];
+    for(int i=0;i<PREON_N_QUERY;i++) { vv0[i] = open_mesg0+i*MT_AUTHPATH_LEN( AURORA_MT_MESG0_LEN,AURORA_MT_LOGMESG);  }
+    //v_w0 , v_Az0 , v_Bz0 , v_Cz0 , v_lincheck0 , v_ldt0 = vv0[0],vv0[1],vv0[2],vv0[3],vv0[4],vv0[5]
+
+    //v_h0   = gf.from_bytes_x2(aurora_open1)
+    const uint8_t * v_h0[PREON_N_QUERY];
+    for(int i=0;i<PREON_N_QUERY;i++) { v_h0[i] = open_mesg1+i*MT_AUTHPATH_LEN( AURORA_MT_MESG1_LEN,AURORA_MT_LOGMESG);  }
+
+    gfvec_t yy; gfvec_alloc(&yy,9);  gfvec_from_u64vec(yy,y);
+    gfvec_t cc; gfvec_alloc(&cc,16);
+    gfvec_t v_w = gfvec_slice(cc,0,1);
+    gfvec_t v_Az = gfvec_slice(cc,1,1);
+    gfvec_t v_Bz = gfvec_slice(cc,2,1);
+    gfvec_t v_Cz = gfvec_slice(cc,3,1);
+    gfvec_t v_rowc = gfvec_slice(cc,4,1);
+    gfvec_t v_linc = gfvec_slice(cc,5,1);
+    gfvec_t v_h = gfvec_slice(cc,6,1);
+    gfvec_t v_g = gfvec_slice(cc,7,1);
+    gfvec_t v_gr1 = gfvec_slice(cc,8,1);
+    gfvec_t v_ldt = gfvec_slice(cc,9,1);
+    gfvec_t tmp_v6 = gfvec_slice(cc,10,6);
+
+    uint64_t tmp_gfx12[GF_NUMU64*12];
+    uint64_t tmp_gfx2[GF_NUMU64*2];
+
+    for(int i=0;i<PREON_N_QUERY;i++) {
+        unsigned idx = queries[i]*2;
+        memcpy(tmp_gfx12,vv0[i] ,GF_BYTES*12);
+        memcpy(tmp_gfx2 ,v_h0[i],GF_BYTES*12);
+        for(int j=0;j<4;j++) gfvec_from_u64vec(gfvec_slice(cc,j,1), &tmp_gfx12[j*2*GF_NUMU64]);  // v_w, v_Az, v_Bz, v_Cz
+        gfvec_from_u64vec( v_linc , &tmp_gfx12[4*2*GF_NUMU64] );
+        gfvec_from_u64vec( v_ldt  , &tmp_gfx12[5*2*GF_NUMU64] );
+
+        gfvec_mul( v_rowc , v_Az , v_Bz );
+        gfvec_add( v_rowc , v_rowc , v_Cz );
+        gfvec_mul_scalar3( v_rowc , gf264_inv( cantor_to_gf264(RS_SHIFT+idx) ) );
+
+        gfvec_from_u64vec( v_h , &tmp_gfx2[0*GF_NUMU64]);
+
+    }
+    gfvec_free(&yy);
+    gfvec_free(&cc);
+
+    //# generate output
+    //values = []
+    //for i in range(2):
+    //    idx = _idx*2 + i
+    //    cc0  = gf.mul(y[0],v_w0[i])^gf.mul(y[1],v_Az0[i])^gf.mul(y[2],v_Bz0[i])^gf.mul(y[3],v_Cz0[i])
+    //    v_f_rowcheck0 = gf.mul( (gf.mul( v_Az0[i] , v_Bz0[i] )^v_Cz0[i]) , cgf.gf264_inv( cgf.index_to_gf264((offset+idx)>>r1cs_dim) ) )
+    //    cc0 ^= gf.mul(y[4],v_f_rowcheck0)
+    //    cc0 ^= gf.mul(y[5],v_lincheck0[i])^gf.mul(y[6],v_h0[i])^v_ldt0[i]
+    //
+    //    v_fz0 = rs_f_1v[idx]^gf.mul_gf264( v_w0[i] , cgf.index_to_gf264( (offset+idx)>>inst_dim ) )
+    //
+    //    v_g0 =  gf.mul( s1 , gf.mul(v_Az0[i],rs_f_alpha[idx])^gf.mul(rs_f_p2A[idx],v_fz0) ) \
+    //           ^gf.mul( s2 , gf.mul(v_Bz0[i],rs_f_alpha[idx])^gf.mul(rs_f_p2B[idx],v_fz0) ) \
+    //           ^gf.mul( s3 , gf.mul(v_Cz0[i],rs_f_alpha[idx])^gf.mul(rs_f_p2C[idx],v_fz0) ) \
+    //           ^ v_lincheck0[i] ^ gf.mul_gf264( v_h0[i] , cgf.index_to_gf264((offset+idx)>>r1cs_dim) )
+    //    cc0 ^= gf.mul(y[7],v_g0) 
+    //    cc0 ^= gf.mul_gf264( gf.mul(y[8],v_g0), cgf.gf264_mul( cgf.index_to_gf264(offset+idx) , cgf.index_to_gf264((offset+idx)>>r1cs_dim) ) )
+    //    values.append( cc0 )
+    //return gf.to_bytes(values[0])+gf.to_bytes(values[1])
+
+    gfvec_free(&rs_f_1v);
+    gfvec_free(&rs_f_alpha);
+    gfvec_free(&rs_f_p2A);
+    gfvec_free(&rs_f_p2B);
+    gfvec_free(&rs_f_p2C);
+
+
+}
+
+
+
+
+
+
