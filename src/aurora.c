@@ -419,13 +419,9 @@ bool aurora_verify_proof( const uint8_t * proof , const uint8_t * r1cs_1v , cons
 
 
 static
-void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha , const uint8_t * r1cs_1v )
+void recover_lincheck_pubpoly( gfvec_t f_alpha , gfvec_t f_p2A , gfvec_t f_p2B , gfvec_t f_p2C , const uint64_t * alpha )
 {
     gfvec_t temp;  gfvec_alloc(&temp, R1CS_POLYLEN);
-    // generate f_1v
-    gfvec_from_u8gfvec( gfvec_slice(temp,0,R1CS_WITNESS_IDX) , r1cs_1v );
-    gfvec_ifft(f_1v,gfvec_slice(temp,0,R1CS_WITNESS_IDX), 0);
-
     // generate v_alpha
     gfvec_t v_alpha; gfvec_alloc(&v_alpha, R1CS_POLYLEN);
     gfvec_set_zero( gfvec_slice(v_alpha,0,1) );   v_alpha.vec[0][0]=1;
@@ -460,15 +456,18 @@ void recover_public_polynomials( gfvec_t f_1v , gfvec_t f_alpha , gfvec_t f_p2A 
 static
 void recover_v0_mesgs( uint64_t *mesg , const uint8_t * open_mesg0 , const uint8_t * open_mesg1 , const uint8_t * r1cs_1v, const uint64_t * alpha_n_s , const uint64_t * y, const uint32_t * queries )
 {
-
+    // generate f_1v
     gfvec_t f_1v;    gfvec_alloc(&f_1v, R1CS_WITNESS_IDX); 
+    gfvec_from_u8gfvec( f_1v , r1cs_1v );
+    gfvec_ifft(f_1v,f_1v, 0);
+
     gfvec_t f_alpha; gfvec_alloc(&f_alpha,R1CS_POLYLEN);
     gfvec_t f_p2A;   gfvec_alloc(&f_p2A,R1CS_POLYLEN);
     gfvec_t f_p2B;   gfvec_alloc(&f_p2B,R1CS_POLYLEN);
     gfvec_t f_p2C;   gfvec_alloc(&f_p2C,R1CS_POLYLEN);
+    recover_lincheck_pubpoly(f_alpha,f_p2A,f_p2B,f_p2C,alpha_n_s);
 
-    recover_public_polynomials(f_1v,f_alpha,f_p2A,f_p2B,f_p2C,alpha_n_s,r1cs_1v);
-
+    // XXX: better to evaluate polys when needed than calculating their rs code !!!
     //rs_f_1v , rs_f_alpha , rs_f_p2A, rs_f_p2B, rs_f_p2C = rs_codewords
     gfvec_t rs_f_1v;    gfvec_alloc(&rs_f_1v, RS_RHO*AURORA_POLYLEN);    gfvec_fft(rs_f_1v,f_1v,RS_SHIFT);
     gfvec_t rs_f_alpha; gfvec_alloc(&rs_f_alpha, RS_RHO*AURORA_POLYLEN); gfvec_fft(rs_f_alpha,f_alpha,RS_SHIFT);
@@ -483,9 +482,9 @@ void recover_v0_mesgs( uint64_t *mesg , const uint8_t * open_mesg0 , const uint8
     gfvec_free(&f_p2C);
 
     //s1 , s2, s3 = lincheck_s
-    const uint64_t * s1 = alpha_n_s[1*GF_NUMU64];
-    const uint64_t * s2 = alpha_n_s[2*GF_NUMU64];
-    const uint64_t * s3 = alpha_n_s[3*GF_NUMU64];
+    const uint64_t * s1 = alpha_n_s+1*GF_NUMU64;
+    const uint64_t * s2 = alpha_n_s+2*GF_NUMU64;
+    const uint64_t * s3 = alpha_n_s+3*GF_NUMU64;
 
     //vv0 = [ gf.from_bytes_x2(aurora_open0[i*gf.GF_BSIZE*2:i*gf.GF_BSIZE*2+gf.GF_BSIZE*2]) for i in range(6) ]
     const uint8_t * vv0[PREON_N_QUERY];
@@ -496,40 +495,111 @@ void recover_v0_mesgs( uint64_t *mesg , const uint8_t * open_mesg0 , const uint8
     const uint8_t * v_h0[PREON_N_QUERY];
     for(int i=0;i<PREON_N_QUERY;i++) { v_h0[i] = open_mesg1+i*MT_AUTHPATH_LEN( AURORA_MT_MESG1_LEN,AURORA_MT_LOGMESG);  }
 
+
     gfvec_t yy; gfvec_alloc(&yy,9);  gfvec_from_u64vec(yy,y);
-    gfvec_t cc; gfvec_alloc(&cc,16);
-    gfvec_t v_w = gfvec_slice(cc,0,1);
-    gfvec_t v_Az = gfvec_slice(cc,1,1);
-    gfvec_t v_Bz = gfvec_slice(cc,2,1);
-    gfvec_t v_Cz = gfvec_slice(cc,3,1);
-    gfvec_t v_rowc = gfvec_slice(cc,4,1);
-    gfvec_t v_linc = gfvec_slice(cc,5,1);
-    gfvec_t v_h = gfvec_slice(cc,6,1);
-    gfvec_t v_g = gfvec_slice(cc,7,1);
-    gfvec_t v_gr1 = gfvec_slice(cc,8,1);
-    gfvec_t v_ldt = gfvec_slice(cc,9,1);
-    gfvec_t tmp_v6 = gfvec_slice(cc,10,6);
+
+    gfvec_t cc0; gfvec_alloc(&cc0,9);
+    gfvec_t v_w    = gfvec_slice(cc0,0,1);
+    gfvec_t v_Az   = gfvec_slice(cc0,1,1);
+    gfvec_t v_Bz   = gfvec_slice(cc0,2,1);
+    gfvec_t v_Cz   = gfvec_slice(cc0,3,1);
+    gfvec_t v_rowc = gfvec_slice(cc0,4,1);
+    gfvec_t v_linc = gfvec_slice(cc0,5,1);
+    gfvec_t v_h    = gfvec_slice(cc0,6,1);
+    gfvec_t v_g    = gfvec_slice(cc0,7,1);
+    gfvec_t v_gr1  = gfvec_slice(cc0,8,1);
+
+    gfvec_t cc1; gfvec_alloc(&cc1,6);
+    gfvec_t v_ldt  = gfvec_slice(cc1,0,1);
+    gfvec_t v_fz   = gfvec_slice(cc1,1,1);
+    gfvec_t tmp_v1 = gfvec_slice(cc1,2,1);
+    gfvec_t tmp_v2 = gfvec_slice(cc1,3,1);
+    gfvec_t tmp_v3 = gfvec_slice(cc1,4,1);
+    gfvec_t tmp_v4 = gfvec_slice(cc1,5,1);
 
     uint64_t tmp_gfx12[GF_NUMU64*12];
     uint64_t tmp_gfx2[GF_NUMU64*2];
 
     for(int i=0;i<PREON_N_QUERY;i++) {
+        memcpy(tmp_gfx12,vv0[i] ,GF_BYTES*12);  // [f_w , f_Az , f_Bz , f_Cz , r_lincheck , r_ldt ] x2
+        memcpy(tmp_gfx2 ,v_h0[i],GF_BYTES*2);
+
         unsigned idx = queries[i]*2;
-        memcpy(tmp_gfx12,vv0[i] ,GF_BYTES*12);
-        memcpy(tmp_gfx2 ,v_h0[i],GF_BYTES*12);
-        for(int j=0;j<4;j++) gfvec_from_u64vec(gfvec_slice(cc,j,1), &tmp_gfx12[j*2*GF_NUMU64]);  // v_w, v_Az, v_Bz, v_Cz
+
+        for(int j=0;j<4;j++) gfvec_from_u64vec(gfvec_slice(cc0,j,1), &tmp_gfx12[j*2*GF_NUMU64]);  // v_w, v_Az, v_Bz, v_Cz
         gfvec_from_u64vec( v_linc , &tmp_gfx12[4*2*GF_NUMU64] );
         gfvec_from_u64vec( v_ldt  , &tmp_gfx12[5*2*GF_NUMU64] );
 
+        //    v_f_rowcheck0 = gf.mul( (gf.mul( v_Az0[i] , v_Bz0[i] )^v_Cz0[i]) , cgf.gf264_inv( cgf.index_to_gf264((offset+idx)>>r1cs_dim) ) )
         gfvec_mul( v_rowc , v_Az , v_Bz );
         gfvec_add( v_rowc , v_rowc , v_Cz );
-        gfvec_mul_scalar3( v_rowc , gf264_inv( cantor_to_gf264(RS_SHIFT+idx) ) );
+        gfvec_mul_scalar3( v_rowc , gf264_inv( cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_LOGPOLYLEN ) ) );
 
         gfvec_from_u64vec( v_h , &tmp_gfx2[0*GF_NUMU64]);
 
+        // v_fz0 = rs_f_1v[idx]^gf.mul_gf264( v_w0[i] , cgf.index_to_gf264( (offset+idx)>>inst_dim ) )
+        // vec_z = vec_1v + vec_w
+        gfvec_copy( v_fz , v_w );
+        gfvec_mul_scalar3( v_fz , cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_INSTANCE_DIM ) );
+        gfvec_add( v_fz , v_fz , gfvec_slice(rs_f_1v,idx,1) );
+        gfvec_mul( tmp_v1 , v_Az , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2A,idx,1) );
+        gfvec_add( tmp_v1 , tmp_v1 , tmp_v4 );  gfvec_mul_scalar( tmp_v1 , s1 );
+        gfvec_mul( tmp_v2 , v_Bz , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2B,idx,1) );
+        gfvec_add( tmp_v2 , tmp_v2 , tmp_v4 );  gfvec_mul_scalar( tmp_v2 , s2 );
+        gfvec_mul( tmp_v3 , v_Cz , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2C,idx,1) );
+        gfvec_add( tmp_v3 , tmp_v3 , tmp_v4 );  gfvec_mul_scalar( tmp_v3 , s3 );
+        gfvec_add( v_g , tmp_v1 , tmp_v2 );  gfvec_add( v_g , v_g , tmp_v3 ); gfvec_add( v_g , v_g , v_linc);
+        gfvec_copy( tmp_v4 , v_h );   gfvec_mul_scalar3( tmp_v4 , cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_LOGPOLYLEN ) );
+        gfvec_add( v_g , v_g , tmp_v4 );
+
+        gfvec_copy( v_gr1 , v_g );    gfvec_mul_scalar3( v_gr1, gf264_mul(cantor_to_gf264((RS_SHIFT+idx)>>R1CS_LOGPOLYLEN),cantor_to_gf264(RS_SHIFT+idx)) );
+        gfvec_mul( cc0 , cc0 , yy );
+        gfvec_sum_reduce( cc0 );
+        gfvec_add( v_ldt , v_ldt , gfvec_slice(cc0,0,1));
+
+        gfvec_to_u64vec( mesg , v_ldt );
+        mesg += GF_NUMU64;
+
+        idx = queries[i]*2+1;
+        
+        for(int j=0;j<4;j++) gfvec_from_u64vec(gfvec_slice(cc0,j,1), &tmp_gfx12[(j*2+1)*GF_NUMU64]);  // v_w, v_Az, v_Bz, v_Cz
+        gfvec_from_u64vec( v_linc , &tmp_gfx12[(4*2+1)*GF_NUMU64] );
+        gfvec_from_u64vec( v_ldt  , &tmp_gfx12[(5*2+1)*GF_NUMU64] );
+
+        //    v_f_rowcheck0 = gf.mul( (gf.mul( v_Az0[i] , v_Bz0[i] )^v_Cz0[i]) , cgf.gf264_inv( cgf.index_to_gf264((offset+idx)>>r1cs_dim) ) )
+        gfvec_mul( v_rowc , v_Az , v_Bz );
+        gfvec_add( v_rowc , v_rowc , v_Cz );
+        gfvec_mul_scalar3( v_rowc , gf264_inv( cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_LOGPOLYLEN ) ) );
+
+        gfvec_from_u64vec( v_h , &tmp_gfx2[1*GF_NUMU64]);
+
+        // v_fz0 = rs_f_1v[idx]^gf.mul_gf264( v_w0[i] , cgf.index_to_gf264( (offset+idx)>>inst_dim ) )
+        // vec_z = vec_1v + vec_w
+        gfvec_copy( v_fz , v_w );
+        gfvec_mul_scalar3( v_fz , cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_INSTANCE_DIM ) );
+        gfvec_add( v_fz , v_fz , gfvec_slice(rs_f_1v,idx,1) );
+        gfvec_mul( tmp_v1 , v_Az , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2A,idx,1) );
+        gfvec_add( tmp_v1 , tmp_v1 , tmp_v4 );  gfvec_mul_scalar( tmp_v1 , s1 );
+        gfvec_mul( tmp_v2 , v_Bz , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2B,idx,1) );
+        gfvec_add( tmp_v2 , tmp_v2 , tmp_v4 );  gfvec_mul_scalar( tmp_v2 , s2 );
+        gfvec_mul( tmp_v3 , v_Cz , gfvec_slice(rs_f_alpha,idx,1)); gfvec_mul( tmp_v4 , v_fz , gfvec_slice(rs_f_p2C,idx,1) );
+        gfvec_add( tmp_v3 , tmp_v3 , tmp_v4 );  gfvec_mul_scalar( tmp_v3 , s3 );
+        gfvec_add( v_g , tmp_v1 , tmp_v2 );  gfvec_add( v_g , v_g , tmp_v3 ); gfvec_add( v_g , v_g , v_linc);
+        gfvec_copy( tmp_v4 , v_h );   gfvec_mul_scalar3( tmp_v4 , cantor_to_gf264( (RS_SHIFT+idx)>>R1CS_LOGPOLYLEN ) );
+        gfvec_add( v_g , v_g , tmp_v4 );
+
+        gfvec_copy( v_gr1 , v_g );    gfvec_mul_scalar3( v_gr1, gf264_mul(cantor_to_gf264((RS_SHIFT+idx)>>R1CS_LOGPOLYLEN),cantor_to_gf264(RS_SHIFT+idx)) );
+        gfvec_mul( cc0 , cc0 , yy );
+        gfvec_sum_reduce( cc0 );
+        gfvec_add( v_ldt , v_ldt , gfvec_slice(cc0,0,1));
+
+        gfvec_to_u64vec( mesg , v_ldt );
+        mesg += GF_NUMU64;
     }
+
+    gfvec_free(&cc1);
+    gfvec_free(&cc0);
     gfvec_free(&yy);
-    gfvec_free(&cc);
 
     //# generate output
     //values = []

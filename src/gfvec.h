@@ -107,6 +107,12 @@ static inline void gfvec_lincheck_reduce( gfvec_t poly ) {
     }
 }
 
+static inline void gfvec_sum_reduce( gfvec_t poly ) {
+    for(unsigned j=0;j<GF_EXT_DEG;j++) {
+        for(unsigned i=1;i<poly.len;i++) poly.vec[j][0]^=poly.vec[j][i];
+    }
+}
+
 static inline void gfvec_add( gfvec_t c, gfvec_t a , gfvec_t b ) {
     for(unsigned j=0;j<GF_EXT_DEG;j++){
         for(unsigned i=0;i<c.len;i++) { c.vec[j][i] = a.vec[j][i]^b.vec[j][i]; }
